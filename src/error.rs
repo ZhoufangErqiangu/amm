@@ -6,13 +6,10 @@ use thiserror::Error;
 
 /// Errors that may be returned by the StakePool program.
 #[derive(Clone, Debug, Eq, Error, FromPrimitive, PartialEq)]
-pub enum SapError {
+pub enum AmmError {
     /// The account cannot be initialized because it is already being used.
     #[error("AlreadyInUse")]
     AlreadyInUse,
-    /// This token's supply is fixed and new tokens cannot be minted.
-    // #[error("Fixed supply")]
-    // FixedSupply,
     /// This program address is invalid.
     #[error("InvalidProgramAddress")]
     InvalidProgramAddress,
@@ -97,25 +94,25 @@ pub enum SapError {
     ManagerSypMissMatch,
     #[error("SypVaultMissMatch")]
     SypVaultMissMatch,
-    #[error("SapPoolExist")]
-    SapPoolExist,
-    #[error("SapPoolLock")]
-    SapPoolLock,
+    #[error("AmmPoolExist")]
+    AmmPoolExist,
+    #[error("AmmPoolLock")]
+    AmmPoolLock,
     #[error("InvalidAmount")]
     InvalidAmount,
-    #[error("SapPoolNotPreMint")]
-    SapPoolNotPreMint,
+    #[error("AmmPoolNotPreMint")]
+    AmmPoolNotPreMint,
     #[error("PreMintLimit")]
     PreMintLimit,
     #[error("NoFee")]
     NoFee,
 }
-impl From<SapError> for ProgramError {
-    fn from(e: SapError) -> Self {
+impl From<AmmError> for ProgramError {
+    fn from(e: AmmError) -> Self {
         ProgramError::Custom(e as u32)
     }
 }
-impl<T> DecodeError<T> for SapError {
+impl<T> DecodeError<T> for AmmError {
     fn type_of() -> &'static str {
         "Sap Error"
     }
