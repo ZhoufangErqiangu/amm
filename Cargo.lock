@@ -912,6 +912,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "marco-polo-amm"
+version = "0.0.0"
+dependencies = [
+ "anchor-lang",
+ "arrayref",
+ "chainlink_solana",
+ "num-derive",
+ "num-traits",
+ "num_enum",
+ "proptest",
+ "pyth-client",
+ "solana-program",
+ "solana-sdk",
+ "spl-token",
+ "thiserror",
+]
+
+[[package]]
 name = "memchr"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1589,24 +1607,6 @@ dependencies = [
  "quote",
  "syn",
  "unicode-xid",
-]
-
-[[package]]
-name = "sypool"
-version = "1.0.0"
-dependencies = [
- "anchor-lang",
- "arrayref",
- "chainlink_solana",
- "num-derive",
- "num-traits",
- "num_enum",
- "proptest",
- "pyth-client",
- "solana-program",
- "solana-sdk",
- "spl-token",
- "thiserror",
 ]
 
 [[package]]
