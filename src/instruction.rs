@@ -19,6 +19,8 @@ pub enum SapInstruction {
         fee_3: f64,
         fee_4: f64,
         fee_5: f64,
+        amount_a: u64,
+        amount_b: u64,
     },
     UpdatePool {},
     UpdateStatus {
@@ -38,9 +40,17 @@ impl SapInstruction {
         Ok(match tag {
             // initialize
             0 => {
-                let data = array_ref![rest, 0, 1 + 8 * 5];
-                let (nonce_buf, fee_1_buf, fee_2_buf, fee_3_buf, fee_4_buf, fee_5_buf) =
-                    array_refs![data, 1, 8, 8, 8, 8, 8];
+                let data = array_ref![rest, 0, 1 + 8 * 7];
+                let (
+                    nonce_buf,
+                    fee_1_buf,
+                    fee_2_buf,
+                    fee_3_buf,
+                    fee_4_buf,
+                    fee_5_buf,
+                    amount_a_buf,
+                    amount_b_buf,
+                ) = array_refs![data, 1, 8, 8, 8, 8, 8, 8, 8];
 
                 Self::Initialize {
                     nonce: u8::from_le_bytes(*nonce_buf),
@@ -49,6 +59,8 @@ impl SapInstruction {
                     fee_3: f64::from_le_bytes(*fee_3_buf),
                     fee_4: f64::from_le_bytes(*fee_4_buf),
                     fee_5: f64::from_le_bytes(*fee_5_buf),
+                    amount_a: u64::from_le_bytes(*amount_a_buf),
+                    amount_b: u64::from_le_bytes(*amount_b_buf),
                 }
             }
 
@@ -97,6 +109,8 @@ impl SapInstruction {
                 fee_3,
                 fee_4,
                 fee_5,
+                amount_a,
+                amount_b
             } => {
                 buf.push(0);
                 buf.extend_from_slice(&nonce.to_le_bytes());
@@ -104,6 +118,8 @@ impl SapInstruction {
                 buf.extend_from_slice(&fee_2.to_le_bytes());
                 buf.extend_from_slice(&fee_3.to_le_bytes());
                 buf.extend_from_slice(&fee_5.to_le_bytes());
+                buf.extend_from_slice(&amount_a.to_le_bytes());
+                buf.extend_from_slice(&amount_b.to_le_bytes());
             }
             // pack update pool
             &Self::UpdatePool {} => {

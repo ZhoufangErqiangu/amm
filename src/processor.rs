@@ -5,7 +5,6 @@ use {
     crate::{error::AmmError, instruction::SapInstruction, state::AmmPool},
     arrayref::{array_ref, array_refs},
     // std::convert::TryInto,
-    chainlink_solana,
     num_traits::FromPrimitive,
     // pyth_client::{CorpAction, PriceStatus, PriceType},
     solana_program::{
@@ -16,7 +15,6 @@ use {
         msg,
         program::{invoke, invoke_signed},
         program_error::{PrintProgramError, ProgramError},
-        program_option::COption,
         program_pack::Pack,
         pubkey::Pubkey,
         // sysvar::Sysvar,
@@ -38,10 +36,13 @@ impl Processor {
                 fee_3,
                 fee_4,
                 fee_5,
+                amount_a,
+                amount_b,
             } => {
                 msg!("Instruction: Init");
                 Self::process_initialize(
-                    program_id, accounts, nonce, fee_1, fee_2, fee_3, fee_4, fee_5,
+                    program_id, accounts, nonce, fee_1, fee_2, fee_3, fee_4, fee_5, amount_a,
+                    amount_b,
                 )
             }
             SapInstruction::UpdatePool {} => {
@@ -59,135 +60,6 @@ impl Processor {
         }
     }
 
-    /// Unpacks a spl_token `Account`.
-    fn unpack_token_account(
-        account_info: &AccountInfo,
-        token_program_id: &Pubkey,
-    ) -> Result<spl_token::state::Account, AmmError> {
-        if account_info.owner != token_program_id {
-            Err(AmmError::InvalidTokenProgramId)
-        } else {
-            spl_token::state::Account::unpack(&account_info.data.borrow())
-                .map_err(|_| AmmError::ExpectedAccount)
-        }
-    }
-
-    /// Unpacks a spl_token `Mint`.
-    fn unpack_mint(
-        account_info: &AccountInfo,
-        token_program_id: &Pubkey,
-    ) -> Result<spl_token::state::Mint, AmmError> {
-        if account_info.owner != token_program_id {
-            Err(AmmError::InvalidTokenProgramId)
-        } else {
-            spl_token::state::Mint::unpack(&account_info.data.borrow())
-                .map_err(|_| AmmError::ExpectedMint)
-        }
-    }
-
-    /// Calculates the authority id by generating a program address.
-    fn authority_id(program_id: &Pubkey, my_info: &Pubkey, nonce: u8) -> Result<Pubkey, AmmError> {
-        msg!("program id:{:?}", program_id);
-        msg!("my info:{:?}, nonce:{:?}", my_info, nonce);
-        let ak = Pubkey::create_program_address(&[&my_info.to_bytes()[..32], &[nonce]], program_id);
-        msg!("pda:{:?}", ak);
-        Err(AmmError::InvalidProgramAddress)
-        // .or(Err(AmmError::InvalidProgramAddress))
-    }
-
-    /// Issue a spl_token `Burn` instruction.
-    fn token_burn<'a>(
-        _sap_pool: &Pubkey,
-        token_program: AccountInfo<'a>,
-        burn_account: AccountInfo<'a>,
-        mint: AccountInfo<'a>,
-        authority: AccountInfo<'a>,
-        _nonce: u8,
-        amount: u64,
-    ) -> Result<(), ProgramError> {
-        let ix = spl_token::instruction::burn(
-            token_program.key,
-            burn_account.key,
-            mint.key,
-            authority.key,
-            &[],
-            amount,
-        )?;
-
-        invoke(&ix, &[burn_account, mint, authority, token_program])
-    }
-
-    /// Issue a spl_token `MintTo` instruction.
-    fn token_mint_to<'a>(
-        _sap_pool: &Pubkey,
-        token_program: AccountInfo<'a>,
-        mint: AccountInfo<'a>,
-        destination: AccountInfo<'a>,
-        authority: AccountInfo<'a>,
-        _nonce: u8,
-        amount: u64,
-    ) -> Result<(), ProgramError> {
-        let authority_bytes = authority.key.to_bytes();
-        let authority_signature_seeds = [&authority_bytes[..32]];
-        let signers = &[&authority_signature_seeds[..]];
-        let ix = spl_token::instruction::mint_to(
-            token_program.key,
-            mint.key,
-            destination.key,
-            authority.key,
-            &[&authority.key],
-            amount,
-        )?;
-        invoke_signed(&ix, &[mint, destination, authority, token_program], signers)
-    }
-
-    /// Issue a spl_token `MintTo` instruction.
-    fn token_mint_to2<'a>(
-        sap_pool: &Pubkey,
-        token_program: AccountInfo<'a>,
-        mint: AccountInfo<'a>,
-        destination: AccountInfo<'a>,
-        pda: AccountInfo<'a>,
-        nonce: u8,
-        amount: u64,
-    ) -> Result<(), ProgramError> {
-        let seeds = &[sap_pool.as_ref(), &[nonce]];
-        let signer = &[&seeds[..]];
-        let ix = spl_token::instruction::mint_to(
-            token_program.key,
-            mint.key,
-            destination.key,
-            pda.key,
-            &[],
-            amount,
-        )?;
-        invoke_signed(&ix, &[mint, destination, pda, token_program], signer)
-    }
-
-    /// Issue a spl_token `Transfer` instruction.
-    fn token_transfer<'a>(
-        _sap_pool: &Pubkey,
-        token_program: AccountInfo<'a>,
-        source: AccountInfo<'a>,
-        destination: AccountInfo<'a>,
-        authority: AccountInfo<'a>,
-        _nonce: u8,
-        amount: u64,
-    ) -> Result<(), ProgramError> {
-        let ix = spl_token::instruction::transfer(
-            token_program.key,
-            source.key,
-            destination.key,
-            authority.key,
-            &[&authority.key],
-            amount,
-        )?;
-        invoke(
-            &ix,
-            &[source, destination, authority, token_program], // signers,
-        )
-    }
-
     /// Processes `Initialize` instruction.
     fn process_initialize(
         _program_id: &Pubkey,
@@ -198,9 +70,11 @@ impl Processor {
         fee_3: f64,
         fee_4: f64,
         fee_5: f64,
+        amount_a: u64,
+        amount_b: u64,
     ) -> ProgramResult {
-        let accounts = array_ref![accounts, 0, 12];
-        let [pool_acc, owner_acc, mint_a_acc, mint_b_acc, vault_a_acc, vault_b_acc, fee_receiver_1_acc, fee_receiver_2_acc, fee_receiver_3_acc, fee_receiver_4_acc, fee_receiver_5_acc, pool_pda] =
+        let accounts = array_ref![accounts, 0, 17];
+        let [pool_acc, owner_acc, mint_a_acc, mint_b_acc, vault_a_acc, vault_b_acc, fee_vault_acc, fee_receiver_1_acc, fee_receiver_2_acc, fee_receiver_3_acc, fee_receiver_4_acc, fee_receiver_5_acc, fee_mint_acc, pool_pda, owner_token_a_acc, owner_token_b_acc, token_program_acc] =
             accounts;
 
         // use data
@@ -210,9 +84,10 @@ impl Processor {
             msg!("owner must sign");
             return Err(AmmError::InvalidSignAccount.into());
         }
-        if pool.owner != NULL_PUBKEY {
+        if pool.status != 0 {
             return Err(AmmError::AmmPoolExist.into());
         }
+        // check vault a
         let vault_a = Self::unpack_token_account(vault_a_acc, &spl_token::ID)?;
         if vault_a.mint != *mint_a_acc.key {
             msg!(
@@ -222,6 +97,11 @@ impl Processor {
             );
             return Err(AmmError::InvalidMint.into());
         }
+        if vault_a.owner != *pool_pda.key {
+            msg!("vault a owner not match {} {}", vault_a.mint, *pool_pda.key);
+            return Err(AmmError::InvalidOwner.into());
+        }
+        // check vault b
         let vault_b = Self::unpack_token_account(vault_b_acc, &spl_token::ID)?;
         if vault_b.mint != *mint_b_acc.key {
             msg!(
@@ -231,9 +111,48 @@ impl Processor {
             );
             return Err(AmmError::InvalidMint.into());
         }
+        if vault_b.owner != *pool_pda.key {
+            msg!("vault b owner not match {} {}", vault_b.mint, *pool_pda.key);
+            return Err(AmmError::InvalidOwner.into());
+        }
+        // check fee vault
+        let fee_vault = Self::unpack_token_account(fee_vault_acc, &spl_token::ID)?;
+        if fee_vault.mint != *fee_mint_acc.key {
+            msg!(
+                "fee vault mint not match {} {}",
+                fee_vault.mint,
+                *mint_a_acc.key
+            );
+            return Err(AmmError::InvalidMint.into());
+        }
+        if fee_vault.owner != *pool_pda.key {
+            msg!(
+                "fee vault owner not match {} {}",
+                fee_vault.owner,
+                *pool_pda.key
+            );
+            return Err(AmmError::InvalidOwner.into());
+        }
+        // transfer asset to vault
+        Self::token_transfer(
+            token_program_acc.clone(),
+            owner_token_a_acc.clone(),
+            vault_a_acc.clone(),
+            owner_acc.clone(),
+            amount_a,
+        );
+        Self::token_transfer(
+            token_program_acc.clone(),
+            owner_token_b_acc.clone(),
+            vault_b_acc.clone(),
+            owner_acc.clone(),
+            amount_b,
+        );
         // init pool
         pool.status = 1;
         pool.nonce = nonce;
+        pool.ka = amount_a;
+        pool.kb = amount_b;
         pool.fee_1 = fee_1;
         pool.fee_2 = fee_2;
         pool.fee_3 = fee_3;
@@ -244,12 +163,14 @@ impl Processor {
         pool.mint_b = *owner_acc.key;
         pool.vault_a = *owner_acc.key;
         pool.vault_b = *owner_acc.key;
+        pool.fee_vault = *fee_vault_acc.key;
         pool.fee_receiver_1 = *fee_receiver_1_acc.key;
         pool.fee_receiver_2 = *fee_receiver_2_acc.key;
         pool.fee_receiver_3 = *fee_receiver_3_acc.key;
         pool.fee_receiver_4 = *fee_receiver_4_acc.key;
         pool.fee_receiver_5 = *fee_receiver_5_acc.key;
-
+        pool.fee_mint = *fee_mint_acc.key;
+        // pack pool
         AmmPool::pack(pool, &mut pool_acc.data.borrow_mut())?;
         Ok(())
     }
@@ -789,6 +710,82 @@ impl Processor {
         } else {
             Ok(())
         }
+    }
+
+    /// Unpacks a spl_token `Account`.
+    fn unpack_token_account(
+        account_info: &AccountInfo,
+        token_program_id: &Pubkey,
+    ) -> Result<spl_token::state::Account, AmmError> {
+        if account_info.owner != token_program_id {
+            Err(AmmError::InvalidTokenProgramId)
+        } else {
+            spl_token::state::Account::unpack(&account_info.data.borrow())
+                .map_err(|_| AmmError::ExpectedAccount)
+        }
+    }
+
+    /// Unpacks a spl_token `Mint`.
+    fn unpack_mint(
+        account_info: &AccountInfo,
+        token_program_id: &Pubkey,
+    ) -> Result<spl_token::state::Mint, AmmError> {
+        if account_info.owner != token_program_id {
+            Err(AmmError::InvalidTokenProgramId)
+        } else {
+            spl_token::state::Mint::unpack(&account_info.data.borrow())
+                .map_err(|_| AmmError::ExpectedMint)
+        }
+    }
+
+    /// Issue a spl_token `Transfer` instruction.
+    fn token_transfer<'a>(
+        token_program: AccountInfo<'a>,
+        source: AccountInfo<'a>,
+        destination: AccountInfo<'a>,
+        authority: AccountInfo<'a>,
+        amount: u64,
+    ) -> Result<(), ProgramError> {
+        let ix = spl_token::instruction::transfer(
+            token_program.key,
+            source.key,
+            destination.key,
+            authority.key,
+            &[&authority.key],
+            amount,
+        )?;
+        invoke(
+            &ix,
+            &[source, destination, authority, token_program], // signers,
+        )
+    }
+
+    /// Issue a spl_token `Transfer` instruction by pda.
+    fn token_transfer_signed<'a>(
+        pool_acc: AccountInfo<'a>,
+        nonce: u8,
+        token_program_acc: AccountInfo<'a>,
+        source_acc: AccountInfo<'a>,
+        destination_acc: AccountInfo<'a>,
+        pda: AccountInfo<'a>,
+        amount: u64,
+    ) -> Result<(), ProgramError> {
+        // generate signer seeds
+        let seeds = &[pool_acc.key.as_ref(), &[nonce]];
+        let signers = &[&seeds[..]];
+        let ix = spl_token::instruction::transfer(
+            token_program_acc.key,
+            source_acc.key,
+            destination_acc.key,
+            pda.key,
+            &[&pda.key],
+            amount,
+        )?;
+        invoke_signed(
+            &ix,
+            &[source_acc, destination_acc, pda, token_program_acc],
+            signers,
+        )
     }
 }
 

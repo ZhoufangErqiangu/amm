@@ -1,30 +1,30 @@
 # Marco Polo AMM
 
-## 介绍
+## Overview
 
-Marco Polo AMM项目合约程序
+Marco Polo AMM smart contract
 
-## 软件架构
+## Software framework
 
-参见https://docs.solana.com/developing/programming-model/overview
+Read https://docs.solana.com/developing/programming-model/overview
 
-## 安装教程
+## How to install
 
-1. 安装rustc v1.56.1
+1. install rustc v1.56.1
 
-2. 安装solana cli v1.9.5
+2. install solana cli v1.9.5
 
-3. 确认id.json和manager.json文件路径
+3. confirm id.json file path
 
-4. 构建
+4. build
 
    ```bash
    cargo build-bpf
    ```
 
-5. 确认id.json文件钱包账户中sol数额充足
+5. confirm id.json file wallet has enough SOL
 
-6. 部署
+6. depoly
 
    ```bash
    solana program deploy XXXXX.so
@@ -32,13 +32,13 @@ Marco Polo AMM项目合约程序
 
    
 
-## 文件结构
+## File
 
-1. /sap_pool/ index基金合约程序
-2. /sy_sap/ yield基金合约程序
+1. src/ smart contract
+2. js/ js source code for test
 3. 
 
-## 常用命令
+## Useful cmd
 
 ```bash
 export PATH="/home/ubuntu/.local/share/solana/install/active_release/bin:$PATH"
