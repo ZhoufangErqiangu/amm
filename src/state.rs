@@ -107,7 +107,7 @@ impl Pack for AmmPool {
     }
 
     fn pack_into_slice(&self, dst: &mut [u8]) {
-        const LEN: usize = 1 * 2 + 8 * 7 + 32 * 11;
+        const LEN: usize = 1 * 2 + 8 * 7 + 32 * 12;
         let dst = array_mut_ref![dst, 0, LEN];
         let (
             status_buf,

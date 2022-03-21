@@ -2,7 +2,8 @@
 #![allow(clippy::too_many_arguments)]
 
 use crate::error::AmmError;
-use solana_program::{program_error::ProgramError, pubkey::Pubkey};
+// use solana_program::{program_error::ProgramError, pubkey::Pubkey};
+use solana_program::program_error::ProgramError;
 use std::mem::size_of;
 
 use arrayref::{array_ref, array_refs};
@@ -91,16 +92,6 @@ impl SapInstruction {
         })
     }
 
-    fn unpack_pubkey(input: &[u8]) -> Result<Pubkey, ProgramError> {
-        if input.len() >= 32 {
-            let (key, _rest) = input.split_at(32);
-            let pk = Pubkey::new(key);
-            Ok(pk)
-        } else {
-            Err(AmmError::InvalidInstruction.into())
-        }
-    }
-
     // pack function to pack a SapInstruction enum into a byte array for test convenience
     pub fn pack(&self) -> Vec<u8> {
         let mut buf = Vec::with_capacity(size_of::<Self>());
@@ -121,6 +112,7 @@ impl SapInstruction {
                 buf.extend_from_slice(&fee_1.to_le_bytes());
                 buf.extend_from_slice(&fee_2.to_le_bytes());
                 buf.extend_from_slice(&fee_3.to_le_bytes());
+                buf.extend_from_slice(&fee_4.to_le_bytes());
                 buf.extend_from_slice(&fee_5.to_le_bytes());
                 buf.extend_from_slice(&amount_a.to_le_bytes());
                 buf.extend_from_slice(&amount_b.to_le_bytes());

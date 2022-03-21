@@ -9,7 +9,6 @@ edition = "2021"
 [dependencies]
 anchor-lang = "0.20.1"
 arrayref = "0.3.6"
-chainlink_solana = "0.1.0"
 num-derive = "0.3"
 num-traits = "0.2"
 num_enum = "0.5.1"

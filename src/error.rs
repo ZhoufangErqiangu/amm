@@ -50,6 +50,10 @@ pub enum AmmError {
     NoFee,
     #[error("InvalidDirection")]
     InvalidDirection,
+    #[error("CalculationError")]
+    CalculationError,
+    #[error("NoughtTransfer")]
+    NoughtTransfer,
 }
 impl From<AmmError> for ProgramError {
     fn from(e: AmmError) -> Self {

@@ -3,7 +3,6 @@
 use {
     crate::{error::AmmError, instruction::SapInstruction, state::AmmPool},
     arrayref::array_ref,
-    // std::convert::TryInto,
     num_traits::FromPrimitive,
     // pyth_client::{CorpAction, PriceStatus, PriceType},
     solana_program::{
@@ -82,7 +81,7 @@ impl Processor {
             msg!("owner must sign");
             return Err(AmmError::InvalidSignAccount.into());
         }
-        Self::check_account_owner(pool_acc, program_id);
+        Self::check_account_owner(pool_acc, program_id)?;
         if pool.status != 0 {
             return Err(AmmError::PoolExist.into());
         }
@@ -139,14 +138,14 @@ impl Processor {
             vault_a_acc.clone(),
             owner_acc.clone(),
             amount_a,
-        );
+        )?;
         Self::token_transfer(
             token_program_acc.clone(),
             owner_token_b_acc.clone(),
             vault_b_acc.clone(),
             owner_acc.clone(),
             amount_b,
-        );
+        )?;
         // init pool
         pool.status = 1;
         pool.nonce = nonce;
@@ -186,7 +185,7 @@ impl Processor {
             msg!("owner must sign");
             return Err(AmmError::InvalidSignAccount.into());
         }
-        Self::check_account_owner(pool_acc, program_id);
+        Self::check_account_owner(pool_acc, program_id)?;
         if pool.owner != *owner_acc.key {
             msg!("owner not match {} {}", pool.owner, *owner_acc.key);
             return Err(AmmError::InvalidOwner.into());
@@ -221,7 +220,7 @@ impl Processor {
             msg!("owner must sign");
             return Err(AmmError::InvalidSignAccount.into());
         }
-        Self::check_account_owner(pool_acc, program_id);
+        Self::check_account_owner(pool_acc, program_id)?;
         if pool.owner != *owner_acc.key {
             msg!("owner not match {} {}", pool.owner, *owner_acc.key);
             return Err(AmmError::InvalidOwner.into());
@@ -248,8 +247,8 @@ impl Processor {
         amount: u64,
         direction: u8,
     ) -> ProgramResult {
-        let accounts = array_ref![accounts, 0, 11];
-        let [pool_acc, mint_a_acc, mint_b_acc, vault_a_acc, vault_b_acc, fee_vault, fee_mint, user_wallet_acc, user_token_a_acc, user_token_b_acc, token_program_acc] =
+        let accounts = array_ref![accounts, 0, 12];
+        let [pool_acc, mint_a_acc, mint_b_acc, vault_a_acc, vault_b_acc, _fee_vault, _fee_mint, pool_pda, user_wallet_acc, user_token_a_acc, user_token_b_acc, token_program_acc] =
             accounts;
         // use data
         let pool = AmmPool::unpack_unchecked(&pool_acc.data.borrow())?;
@@ -258,7 +257,7 @@ impl Processor {
             msg!("user wallet must sign");
             return Err(AmmError::InvalidSignAccount.into());
         }
-        Self::check_account_owner(pool_acc, program_id);
+        Self::check_account_owner(pool_acc, program_id)?;
         if pool.mint_a != *mint_a_acc.key {
             msg!("mint a not match {} {}", pool.mint_a, *mint_a_acc.key);
             return Err(AmmError::InvalidMint.into());
@@ -299,9 +298,50 @@ impl Processor {
             return Err(AmmError::InvalidMint.into());
         }
         // match direction
+        // 1 is a2b, 2 is b2a
         match direction {
-            1 => {}
-            2 => {}
+            1 => {
+                let amount_transfer = Self::calculate_amount_a2b(pool, amount)?;
+                // transfer user token to vault
+                Self::token_transfer(
+                    token_program_acc.clone(),
+                    user_token_a_acc.clone(),
+                    vault_a_acc.clone(),
+                    user_wallet_acc.clone(),
+                    amount,
+                )?;
+                // transfer vault token to user
+                Self::token_transfer_signed(
+                    pool_acc.clone(),
+                    pool.nonce,
+                    token_program_acc.clone(),
+                    vault_b_acc.clone(),
+                    user_token_b_acc.clone(),
+                    pool_pda.clone(),
+                    amount_transfer.clone(),
+                )?;
+            }
+            2 => {
+                let amount_transfer = Self::calculate_amount_b2a(pool, amount)?;
+                // transfer user token to vault
+                Self::token_transfer(
+                    token_program_acc.clone(),
+                    user_token_b_acc.clone(),
+                    vault_b_acc.clone(),
+                    user_wallet_acc.clone(),
+                    amount,
+                )?;
+                // transfer vault token to user
+                Self::token_transfer_signed(
+                    pool_acc.clone(),
+                    pool.nonce,
+                    token_program_acc.clone(),
+                    vault_a_acc.clone(),
+                    user_token_a_acc.clone(),
+                    pool_pda.clone(),
+                    amount_transfer.clone(),
+                )?;
+            }
             _ => {
                 return Err(AmmError::InvalidMint.into());
             }
@@ -310,8 +350,37 @@ impl Processor {
     }
 
     /// calculate a2b amount
-    fn calculate_amount_a2b(pool: AmmPool, amount: u64) -> Result<u64, AmmError> {
-        Ok(amount)
+    /// A*B=k
+    /// (A-a)*(B+b)=k
+    /// b=k/(A-a)-B
+    fn calculate_amount_a2b(pool: AmmPool, amount_a: u64) -> Result<u64, AmmError> {
+        let k: u64 = pool.ka.checked_mul(pool.kb).unwrap();
+        let changed_a: u64 = pool.ka.checked_sub(amount_a).unwrap();
+        if changed_a == 0 {
+            return Err(AmmError::CalculationError);
+        }
+        let amount_b: u64 = k
+            .checked_div(changed_a)
+            .and_then(|v| v.checked_sub(pool.kb))
+            .unwrap();
+        Ok(amount_b)
+    }
+
+    /// calculate b2a amount
+    /// A*B=k
+    /// (A+a)*(B-b)=k
+    /// a=k/(B-b)-A
+    fn calculate_amount_b2a(pool: AmmPool, amount_b: u64) -> Result<u64, AmmError> {
+        let k: u64 = pool.ka.checked_mul(pool.kb).unwrap();
+        let changed_b: u64 = pool.ka.checked_sub(amount_b).unwrap();
+        if changed_b == 0 {
+            return Err(AmmError::CalculationError);
+        }
+        let amount_a: u64 = k
+            .checked_div(changed_b)
+            .and_then(|v| v.checked_sub(pool.ka))
+            .unwrap();
+        Ok(amount_a)
     }
 
     /// Check account owner is the given program
@@ -344,7 +413,7 @@ impl Processor {
     }
 
     /// Unpacks a spl_token `Mint`.
-    fn unpack_mint(account_info: &AccountInfo) -> Result<spl_token::state::Mint, AmmError> {
+    fn _unpack_mint(account_info: &AccountInfo) -> Result<spl_token::state::Mint, AmmError> {
         if account_info.owner != &spl_token::ID {
             Err(AmmError::InvalidTokenProgramId)
         } else {
@@ -361,6 +430,9 @@ impl Processor {
         authority: AccountInfo<'a>,
         amount: u64,
     ) -> Result<(), ProgramError> {
+        if amount == 0 {
+            return Err(ProgramError::Custom(321));
+        }
         let ix = spl_token::instruction::transfer(
             token_program.key,
             source.key,
@@ -385,7 +457,9 @@ impl Processor {
         pda: AccountInfo<'a>,
         amount: u64,
     ) -> Result<(), ProgramError> {
-        // generate signer seeds
+        if amount == 0 {
+            return Err(ProgramError::Custom(321));
+        }
         let seeds = &[pool_acc.key.as_ref(), &[nonce]];
         let signers = &[&seeds[..]];
         let ix = spl_token::instruction::transfer(
@@ -427,30 +501,23 @@ impl PrintProgramError for AmmError {
             AmmError::InvalidAmount => msg!("Error: Amount must be greater than zero."),
             AmmError::NoFee => msg!("Error: NoFee"),
             AmmError::InvalidDirection => msg!("Error: InvalidDirection"),
+            AmmError::CalculationError => msg!("Error: CalculationError"),
+            AmmError::NoughtTransfer => msg!("Error: NoughtTransfer"),
         }
     }
 }
 
-fn get_token_price_only(pyth_price_info: &AccountInfo<'_>) -> Result<f64, ProgramError> {
-    let pyth_price_data = &pyth_price_info.try_borrow_data()?;
-    let pyth_price = pyth_client::cast::<pyth_client::Price>(pyth_price_data);
-
-    let org_price: f64 =
-        pyth_price.agg.price as f64 / (u64::pow(10, pyth_price.expo.abs() as u32) as f64);
-    Ok(org_price)
-}
-
 // public key of 11111111111111111111111111111111
-const NULL_PUBKEY: solana_program::pubkey::Pubkey =
+const _NULL_PUBKEY: solana_program::pubkey::Pubkey =
     solana_program::pubkey::Pubkey::new_from_array([
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0,
     ]);
 // public key of usdc
-const USDC_PUBKEY: solana_program::pubkey::Pubkey =
+const _USDC_PUBKEY: solana_program::pubkey::Pubkey =
     solana_program::pubkey::Pubkey::new_from_array([
         198, 250, 122, 243, 190, 219, 173, 58, 61, 101, 243, 106, 171, 201, 116, 49, 177, 187, 228,
         194, 210, 246, 224, 228, 124, 166, 2, 3, 69, 47, 93, 97,
     ]);
 
-const PERCENT_MUL: f64 = 100000.0;
+const _PERCENT_MUL: f64 = 100000.0;
