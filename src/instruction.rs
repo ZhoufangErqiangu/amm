@@ -28,6 +28,7 @@ pub enum SapInstruction {
     },
     Swap {
         amount: u64,
+        direction: u8,
     },
 }
 
@@ -77,10 +78,13 @@ impl SapInstruction {
 
             // swap
             10 => {
-                let data = array_ref![rest, 0, 8];
+                let data = array_ref![rest, 0, 8 + 1];
+                let (amount_buf, direction_buf) = array_refs![data, 8, 1];
 
                 Self::Swap {
-                    amount: u64::from_le_bytes(*data),
+                    amount: u64::from_le_bytes(*amount_buf),
+                    // 1 is a2b, 2 is b2a
+                    direction: u8::from_le_bytes(*direction_buf),
                 }
             }
             _ => return Err(AmmError::InvalidInstruction.into()),
@@ -110,7 +114,7 @@ impl SapInstruction {
                 fee_4,
                 fee_5,
                 amount_a,
-                amount_b
+                amount_b,
             } => {
                 buf.push(0);
                 buf.extend_from_slice(&nonce.to_le_bytes());
@@ -132,9 +136,10 @@ impl SapInstruction {
             }
 
             // pack swap
-            &Self::Swap { amount } => {
+            &Self::Swap { amount, direction } => {
                 buf.push(10);
                 buf.extend_from_slice(&amount.to_le_bytes());
+                buf.extend_from_slice(&direction.to_le_bytes());
             }
         }
         buf
