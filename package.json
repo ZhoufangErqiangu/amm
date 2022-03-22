@@ -9,8 +9,9 @@
     "keywords": [],
     "author": "alex",
     "license": "MIT",
+    "type": "module",
     "scripts": {
-        "start": "node js/index",
+        "test": "node js/test/index",
         "start-test-validator": "solana-test-validator --reset",
         "start-test-validator2": "solana-test-validator",
         "lint": "eslint --ext .ts src/client/* && prettier --check \"src/client/**/*.ts\"",

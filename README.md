@@ -30,19 +30,21 @@ Read https://docs.solana.com/developing/programming-model/overview
    solana program deploy XXXXX.so
    ```
 
-   
+7. test
+
+   ```bash
+   npm run test
+   ```   
 
 ## File
 
 1. src/ smart contract
-2. js/ js source code for test
-3. 
+2. js/ js source code for interact with smart contract. 
 
 ## Useful cmd
 
 ```bash
 export PATH="/home/ubuntu/.local/share/solana/install/active_release/bin:$PATH"
-solana program deploy sap/sypool.so
-solana program deploy sy/sypool.so
+solana program deploy marco-polo-amm.so
 ```
 

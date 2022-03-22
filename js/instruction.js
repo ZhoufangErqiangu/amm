@@ -150,7 +150,7 @@ export class AmmInstruction {
         );
         // data
         let data = Buffer.alloc(UpdatePoolBuffer.span);
-        InitBuffer.encode({
+        UpdatePoolBuffer.encode({
             i: 1,
         }, data);
         // keys accounts
@@ -181,8 +181,8 @@ export class AmmInstruction {
             'program id', programId.toBase58()
         );
         // data
-        let data = Buffer.alloc(UpdatePoolBuffer.span);
-        InitBuffer.encode({
+        let data = Buffer.alloc(UpdateStatusBuffer.span);
+        UpdateStatusBuffer.encode({
             i: 2,
             status,
         }, data);
@@ -209,8 +209,8 @@ export class AmmInstruction {
             'program id', programId.toBase58()
         );
         // data
-        let data = Buffer.alloc(UpdatePoolBuffer.span);
-        InitBuffer.encode({
+        let data = Buffer.alloc(UpdateToleranceBuffer.span);
+        UpdateToleranceBuffer.encode({
             i: 3,
             tolerance,
         }, data);
@@ -255,8 +255,8 @@ export class AmmInstruction {
             'program id', programId.toBase58()
         );
         // data
-        let data = Buffer.alloc(UpdatePoolBuffer.span);
-        InitBuffer.encode({
+        let data = Buffer.alloc(SwapBuffer.span);
+        SwapBuffer.encode({
             i: 10,
             amount,
             direction,
