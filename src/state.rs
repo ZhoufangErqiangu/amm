@@ -17,8 +17,10 @@ pub struct AmmPool {
     pub status: u8,
     // Nonce used in program address.
     pub nonce: u8,
+    // use for calculate
     pub ka: u64,
     pub kb: u64,
+    pub tolerance: u64,
     // fee rate
     pub fee_1: f64,
     pub fee_2: f64,
@@ -51,15 +53,16 @@ impl IsInitialized for AmmPool {
     }
 }
 impl Pack for AmmPool {
-    const LEN: usize = 1 * 2 + 8 * 7 + 32 * 12;
+    const LEN: usize = 1 * 2 + 8 * 8 + 32 * 12;
     fn unpack_from_slice(src: &[u8]) -> Result<Self, ProgramError> {
-        const LEN: usize = 1 * 2 + 8 * 7 + 32 * 12;
+        const LEN: usize = 1 * 2 + 8 * 8 + 32 * 12;
         let src = array_ref![src, 0, LEN];
         let (
             status_buf,
             nonce_buf,
             ka_buf,
             kb_buf,
+            tolerance_buf,
             fee_1_buf,
             fee_2_buf,
             fee_3_buf,
@@ -78,7 +81,7 @@ impl Pack for AmmPool {
             fee_receiver_5_buf,
             fee_mint_buf,
         ) = array_refs![
-            src, 1, 1, 8, 8, 8, 8, 8, 8, 8, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32
+            src, 1, 1, 8, 8, 8, 8, 8, 8, 8, 8, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32
         ];
 
         Ok(AmmPool {
@@ -86,6 +89,7 @@ impl Pack for AmmPool {
             nonce: u8::from_le_bytes(*nonce_buf),
             ka: u64::from_le_bytes(*ka_buf),
             kb: u64::from_le_bytes(*kb_buf),
+            tolerance: u64::from_le_bytes(*tolerance_buf),
             fee_1: f64::from_le_bytes(*fee_1_buf),
             fee_2: f64::from_le_bytes(*fee_2_buf),
             fee_3: f64::from_le_bytes(*fee_3_buf),
@@ -107,13 +111,14 @@ impl Pack for AmmPool {
     }
 
     fn pack_into_slice(&self, dst: &mut [u8]) {
-        const LEN: usize = 1 * 2 + 8 * 7 + 32 * 12;
+        const LEN: usize = 1 * 2 + 8 * 8 + 32 * 12;
         let dst = array_mut_ref![dst, 0, LEN];
         let (
             status_buf,
             nonce_buf,
             ka_buf,
             kb_buf,
+            tolerance_buf,
             fee_1_buf,
             fee_2_buf,
             fee_3_buf,
@@ -132,12 +137,13 @@ impl Pack for AmmPool {
             fee_receiver_5_buf,
             fee_mint_buf,
         ) = mut_array_refs![
-            dst, 1, 1, 8, 8, 8, 8, 8, 8, 8, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32
+            dst, 1, 1, 8, 8, 8, 8, 8, 8, 8, 8, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32
         ];
         *status_buf = self.status.to_le_bytes();
         *nonce_buf = self.nonce.to_le_bytes();
         *ka_buf = self.ka.to_le_bytes();
         *kb_buf = self.kb.to_le_bytes();
+        *tolerance_buf = self.tolerance.to_le_bytes();
         *fee_1_buf = self.fee_1.to_le_bytes();
         *fee_2_buf = self.fee_2.to_le_bytes();
         *fee_3_buf = self.fee_3.to_le_bytes();

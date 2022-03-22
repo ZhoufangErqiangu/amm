@@ -22,10 +22,14 @@ pub enum SapInstruction {
         fee_5: f64,
         amount_a: u64,
         amount_b: u64,
+        tolerance: u64,
     },
     UpdatePool {},
     UpdateStatus {
         status: u8,
+    },
+    UpdateTolerance {
+        tolerance: u64,
     },
     Swap {
         amount: u64,
@@ -38,11 +42,9 @@ impl SapInstruction {
         let (tag, rest) = input
             .split_first()
             .ok_or(crate::error::AmmError::InvalidInstruction)?;
-        // msg!("{:?} {:?} xxxx",tag,rest);
         Ok(match tag {
-            // initialize
             0 => {
-                let data = array_ref![rest, 0, 1 + 8 * 7];
+                let data = array_ref![rest, 0, 1 + 8 * 8];
                 let (
                     nonce_buf,
                     fee_1_buf,
@@ -52,8 +54,8 @@ impl SapInstruction {
                     fee_5_buf,
                     amount_a_buf,
                     amount_b_buf,
-                ) = array_refs![data, 1, 8, 8, 8, 8, 8, 8, 8];
-
+                    tolerance_buf,
+                ) = array_refs![data, 1, 8, 8, 8, 8, 8, 8, 8, 8];
                 Self::Initialize {
                     nonce: u8::from_le_bytes(*nonce_buf),
                     fee_1: f64::from_le_bytes(*fee_1_buf),
@@ -63,21 +65,23 @@ impl SapInstruction {
                     fee_5: f64::from_le_bytes(*fee_5_buf),
                     amount_a: u64::from_le_bytes(*amount_a_buf),
                     amount_b: u64::from_le_bytes(*amount_b_buf),
+                    tolerance: u64::from_le_bytes(*tolerance_buf),
                 }
             }
-
-            // update pool
             1 => Self::UpdatePool {},
-
-            // update pool status
             2 => {
                 let data = array_ref![rest, 0, 1];
                 Self::UpdateStatus {
                     status: u8::from_le_bytes(*data),
                 }
             }
+            3 => {
+                let data = array_ref![rest, 0, 8];
+                Self::UpdateTolerance {
+                    tolerance: u64::from_le_bytes(*data),
+                }
+            }
 
-            // swap
             10 => {
                 let data = array_ref![rest, 0, 8 + 1];
                 let (amount_buf, direction_buf) = array_refs![data, 8, 1];
@@ -88,6 +92,7 @@ impl SapInstruction {
                     direction: u8::from_le_bytes(*direction_buf),
                 }
             }
+
             _ => return Err(AmmError::InvalidInstruction.into()),
         })
     }
@@ -96,7 +101,6 @@ impl SapInstruction {
     pub fn pack(&self) -> Vec<u8> {
         let mut buf = Vec::with_capacity(size_of::<Self>());
         match self {
-            // pack initialize
             &Self::Initialize {
                 nonce,
                 fee_1,
@@ -106,6 +110,7 @@ impl SapInstruction {
                 fee_5,
                 amount_a,
                 amount_b,
+                tolerance,
             } => {
                 buf.push(0);
                 buf.extend_from_slice(&nonce.to_le_bytes());
@@ -116,18 +121,20 @@ impl SapInstruction {
                 buf.extend_from_slice(&fee_5.to_le_bytes());
                 buf.extend_from_slice(&amount_a.to_le_bytes());
                 buf.extend_from_slice(&amount_b.to_le_bytes());
+                buf.extend_from_slice(&tolerance.to_le_bytes());
             }
-            // pack update pool
             &Self::UpdatePool {} => {
                 buf.push(1);
             }
-            // pack update status
             &Self::UpdateStatus { status } => {
                 buf.push(2);
                 buf.extend_from_slice(&status.to_le_bytes());
             }
+            &Self::UpdateTolerance { tolerance } => {
+                buf.push(3);
+                buf.extend_from_slice(&tolerance.to_le_bytes());
+            }
 
-            // pack swap
             &Self::Swap { amount, direction } => {
                 buf.push(10);
                 buf.extend_from_slice(&amount.to_le_bytes());

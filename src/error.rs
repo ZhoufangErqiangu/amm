@@ -52,6 +52,8 @@ pub enum AmmError {
     InvalidDirection,
     #[error("CalculationError")]
     CalculationError,
+    #[error("OutOfTolerance")]
+    OutOfTolerance,
     #[error("NoughtTransfer")]
     NoughtTransfer,
 }

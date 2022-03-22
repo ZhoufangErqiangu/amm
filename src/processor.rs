@@ -36,11 +36,12 @@ impl Processor {
                 fee_5,
                 amount_a,
                 amount_b,
+                tolerance,
             } => {
                 msg!("Instruction: Init");
                 Self::process_initialize(
                     program_id, accounts, nonce, fee_1, fee_2, fee_3, fee_4, fee_5, amount_a,
-                    amount_b,
+                    amount_b, tolerance,
                 )
             }
             SapInstruction::UpdatePool {} => {
@@ -50,6 +51,10 @@ impl Processor {
             SapInstruction::UpdateStatus { status } => {
                 msg!("Instruction: Update Status");
                 Self::process_update_status(program_id, accounts, status)
+            }
+            SapInstruction::UpdateTolerance { tolerance } => {
+                msg!("Instruction: Update Tolerance");
+                Self::process_update_tolerance(program_id, accounts, tolerance)
             }
             SapInstruction::Swap { amount, direction } => {
                 msg!("Instruction: Swap");
@@ -70,6 +75,7 @@ impl Processor {
         fee_5: f64,
         amount_a: u64,
         amount_b: u64,
+        tolerance: u64,
     ) -> ProgramResult {
         let accounts = array_ref![accounts, 0, 17];
         let [pool_acc, owner_acc, mint_a_acc, mint_b_acc, vault_a_acc, vault_b_acc, fee_vault_acc, fee_receiver_1_acc, fee_receiver_2_acc, fee_receiver_3_acc, fee_receiver_4_acc, fee_receiver_5_acc, fee_mint_acc, pool_pda, owner_token_a_acc, owner_token_b_acc, token_program_acc] =
@@ -151,6 +157,7 @@ impl Processor {
         pool.nonce = nonce;
         pool.ka = amount_a;
         pool.kb = amount_b;
+        pool.kb = tolerance;
         pool.fee_1 = fee_1;
         pool.fee_2 = fee_2;
         pool.fee_3 = fee_3;
@@ -240,6 +247,37 @@ impl Processor {
         Ok(())
     }
 
+    /// Processes `Update Tolerance` instruction.
+    fn process_update_tolerance(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        tolerance: u64,
+    ) -> ProgramResult {
+        let accounts = array_ref![accounts, 0, 2];
+        let [pool_acc, owner_acc] = accounts;
+        // use data
+        let mut pool = AmmPool::unpack_unchecked(&pool_acc.data.borrow())?;
+        // check
+        if !owner_acc.is_signer {
+            msg!("owner must sign");
+            return Err(AmmError::InvalidSignAccount.into());
+        }
+        Self::check_account_owner(pool_acc, program_id)?;
+        if pool.owner != *owner_acc.key {
+            msg!("owner not match {} {}", pool.owner, *owner_acc.key);
+            return Err(AmmError::InvalidOwner.into());
+        }
+        if pool.status == 0 {
+            msg!("pool status:{}", pool.status);
+            return Err(AmmError::InvalidStatus.into());
+        }
+        // update pool
+        pool.tolerance = tolerance;
+        // pack pool
+        AmmPool::pack(pool, &mut pool_acc.data.borrow_mut())?;
+        Ok(())
+    }
+
     /// Processes `Swap` instruction.
     fn process_swap(
         program_id: &Pubkey,
@@ -252,6 +290,8 @@ impl Processor {
             accounts;
         // use data
         let pool = AmmPool::unpack_unchecked(&pool_acc.data.borrow())?;
+        let vault_a = Self::unpack_token_account(vault_a_acc)?;
+        let vault_b = Self::unpack_token_account(vault_b_acc)?;
         // check
         if !user_wallet_acc.is_signer {
             msg!("user wallet must sign");
@@ -299,9 +339,10 @@ impl Processor {
         }
         // match direction
         // 1 is a2b, 2 is b2a
+        let amount_transfer: u64;
         match direction {
             1 => {
-                let amount_transfer = Self::calculate_amount_a2b(pool, amount)?;
+                amount_transfer = Self::calculate_amount_a2b(pool, amount, vault_a, vault_b)?;
                 // transfer user token to vault
                 Self::token_transfer(
                     token_program_acc.clone(),
@@ -318,18 +359,18 @@ impl Processor {
                     vault_b_acc.clone(),
                     user_token_b_acc.clone(),
                     pool_pda.clone(),
-                    amount_transfer.clone(),
+                    amount_transfer,
                 )?;
             }
             2 => {
-                let amount_transfer = Self::calculate_amount_b2a(pool, amount)?;
+                amount_transfer = Self::calculate_amount_b2a(pool, amount, vault_a, vault_b)?;
                 // transfer user token to vault
                 Self::token_transfer(
                     token_program_acc.clone(),
                     user_token_b_acc.clone(),
                     vault_b_acc.clone(),
                     user_wallet_acc.clone(),
-                    amount,
+                    amount_transfer,
                 )?;
                 // transfer vault token to user
                 Self::token_transfer_signed(
@@ -339,13 +380,15 @@ impl Processor {
                     vault_a_acc.clone(),
                     user_token_a_acc.clone(),
                     pool_pda.clone(),
-                    amount_transfer.clone(),
+                    amount,
                 )?;
             }
             _ => {
                 return Err(AmmError::InvalidMint.into());
             }
         }
+        // check if k is within tolerance
+        Self::check_amount_tolerance(pool, amount, amount_transfer)?;
         Ok(())
     }
 
@@ -353,15 +396,25 @@ impl Processor {
     /// A*B=k
     /// (A-a)*(B+b)=k
     /// b=k/(A-a)-B
-    fn calculate_amount_a2b(pool: AmmPool, amount_a: u64) -> Result<u64, AmmError> {
+    fn calculate_amount_a2b(
+        pool: AmmPool,
+        amount_a: u64,
+        vault_a: spl_token::state::Account,
+        vault_b: spl_token::state::Account,
+    ) -> Result<u64, AmmError> {
         let k: u64 = pool.ka.checked_mul(pool.kb).unwrap();
-        let changed_a: u64 = pool.ka.checked_sub(amount_a).unwrap();
+        let changed_a = vault_a.amount.checked_sub(amount_a).unwrap();
         if changed_a == 0 {
+            msg!(
+                "amount a too big, vault:{}, amount:{}",
+                vault_a.amount,
+                amount_a
+            );
             return Err(AmmError::CalculationError);
         }
-        let amount_b: u64 = k
+        let amount_b = k
             .checked_div(changed_a)
-            .and_then(|v| v.checked_sub(pool.kb))
+            .and_then(|v| v.checked_sub(vault_b.amount))
             .unwrap();
         Ok(amount_b)
     }
@@ -369,18 +422,52 @@ impl Processor {
     /// calculate b2a amount
     /// A*B=k
     /// (A+a)*(B-b)=k
-    /// a=k/(B-b)-A
-    fn calculate_amount_b2a(pool: AmmPool, amount_b: u64) -> Result<u64, AmmError> {
+    /// b=B-k/(A+a)
+    fn calculate_amount_b2a(
+        pool: AmmPool,
+        amount_a: u64,
+        vault_a: spl_token::state::Account,
+        vault_b: spl_token::state::Account,
+    ) -> Result<u64, AmmError> {
         let k: u64 = pool.ka.checked_mul(pool.kb).unwrap();
-        let changed_b: u64 = pool.ka.checked_sub(amount_b).unwrap();
-        if changed_b == 0 {
+        let changed_a = vault_a.amount.checked_add(amount_a).unwrap();
+        let temp: u64 = k.checked_div(changed_a).unwrap();
+        let amount_b: u64 = vault_b.amount.checked_sub(temp).unwrap();
+        if amount_b >= vault_b.amount {
+            msg!(
+                "amount b too big, vault:{}, amount:{}",
+                vault_b.amount,
+                amount_b
+            );
             return Err(AmmError::CalculationError);
         }
-        let amount_a: u64 = k
-            .checked_div(changed_b)
-            .and_then(|v| v.checked_sub(pool.ka))
-            .unwrap();
-        Ok(amount_a)
+        Ok(amount_b)
+    }
+
+    fn check_amount_tolerance(
+        pool: AmmPool,
+        amount: u64,
+        amount_transfer: u64,
+    ) -> Result<(), AmmError> {
+        let k_origin: u64 = pool.ka.checked_mul(pool.kb).unwrap();
+        let k_new: u64 = amount.checked_mul(amount_transfer).unwrap();
+        let tolerance: u64;
+        if k_origin > k_new {
+            tolerance = k_origin - k_new;
+        } else if k_new > k_origin {
+            tolerance = k_new - k_origin;
+        } else {
+            tolerance = 0;
+        }
+        if tolerance > pool.tolerance {
+            msg!(
+                "tolerance too big, pool:{}, calculation:{}",
+                pool.tolerance,
+                tolerance
+            );
+            return Err(AmmError::OutOfTolerance);
+        }
+        Ok(())
     }
 
     /// Check account owner is the given program
@@ -502,6 +589,7 @@ impl PrintProgramError for AmmError {
             AmmError::NoFee => msg!("Error: NoFee"),
             AmmError::InvalidDirection => msg!("Error: InvalidDirection"),
             AmmError::CalculationError => msg!("Error: CalculationError"),
+            AmmError::OutOfTolerance => msg!("Error: OutOfTolerance"),
             AmmError::NoughtTransfer => msg!("Error: NoughtTransfer"),
         }
     }
