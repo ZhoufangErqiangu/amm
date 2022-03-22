@@ -140,16 +140,27 @@ async function main() {
         {
             // 0.01 means 1%
             let feeParams = {
-                rate1: 0.0025,
-                rate2: 0.0025,
-                rate3: 0.0025,
-                rate4: 0.0025,
-                rate5: 0.0025,
+                // Liquidity Providers
+                rate1: 0.002,
+                // Mercanti Stakers
+                rate2: 0.0005,
+                // Project / DAO
+                rate3: 0.0015,
+                // $MARCO Buy-Back & Burn
+                rate4: 0.0005,
+                // reserved
+                rate5: 0,
+                // Liquidity Providers
                 receiver1: new PublicKey(feeReceiver),
+                // Mercanti Stakers
                 receiver2: new PublicKey(feeReceiver),
+                // Project / DAO
                 receiver3: new PublicKey(feeReceiver),
+                // $MARCO Buy-Back & Burn
                 receiver4: new PublicKey(feeReceiver),
+                // reserved
                 receiver5: new PublicKey(feeReceiver),
+                // ?must be marco?
                 mint: new PublicKey(feeMintKey),
             }
             let res = await initPool(

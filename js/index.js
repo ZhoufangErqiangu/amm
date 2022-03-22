@@ -14,6 +14,8 @@ import { getMintData, getTokenAccountMaxAmount } from "./lib/tokenAccount.js";
 export const AmmProgramId = 'aAmLZ9yP1adeZyRC9qMskX9e1Ma2gR4ktpyrDCWPkdm';
 const programId = new PublicKey(AmmProgramId);
 
+const PercenMul = 10 ** 6;
+
 export async function createPoolAccount(connection, wallet, seed) {
     // use account
     let walletAcc = wallet.publicKey;
@@ -127,11 +129,11 @@ export async function initPool(connection, wallet, poolKey, feeParams, amountA, 
         poolPDA,
     ), AmmInstruction.createInitInstruction(
         nonce,
-        feeParams.rate1,
-        feeParams.rate2,
-        feeParams.rate3,
-        feeParams.rate4,
-        feeParams.rate5,
+        feeParams.rate1 * 10 ** PercenMul,
+        feeParams.rate2 * 10 ** PercenMul,
+        feeParams.rate3 * 10 ** PercenMul,
+        feeParams.rate4 * 10 ** PercenMul,
+        feeParams.rate5 * 10 ** PercenMul,
         amountA * 10 ** mintAData.decimals,
         amountB * 10 ** mintBData.decimals,
         poolAcc,

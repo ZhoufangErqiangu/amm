@@ -68,11 +68,11 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         nonce: u8,
-        fee_1: f64,
-        fee_2: f64,
-        fee_3: f64,
-        fee_4: f64,
-        fee_5: f64,
+        fee_1: u64,
+        fee_2: u64,
+        fee_3: u64,
+        fee_4: u64,
+        fee_5: u64,
         amount_a: u64,
         amount_b: u64,
         tolerance: u64,
@@ -602,4 +602,4 @@ const _USDC_PUBKEY: solana_program::pubkey::Pubkey =
         194, 210, 246, 224, 228, 124, 166, 2, 3, 69, 47, 93, 97,
     ]);
 
-const _PERCENT_MUL: f64 = 100000.0;
+const _PERCENT_MUL: u64 = u64::pow(10, 6);

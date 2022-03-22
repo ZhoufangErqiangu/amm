@@ -15,11 +15,11 @@ use arrayref::{array_ref, array_refs};
 pub enum SapInstruction {
     Initialize {
         nonce: u8,
-        fee_1: f64,
-        fee_2: f64,
-        fee_3: f64,
-        fee_4: f64,
-        fee_5: f64,
+        fee_1: u64,
+        fee_2: u64,
+        fee_3: u64,
+        fee_4: u64,
+        fee_5: u64,
         amount_a: u64,
         amount_b: u64,
         tolerance: u64,
@@ -58,11 +58,11 @@ impl SapInstruction {
                 ) = array_refs![data, 1, 8, 8, 8, 8, 8, 8, 8, 8];
                 Self::Initialize {
                     nonce: u8::from_le_bytes(*nonce_buf),
-                    fee_1: f64::from_le_bytes(*fee_1_buf),
-                    fee_2: f64::from_le_bytes(*fee_2_buf),
-                    fee_3: f64::from_le_bytes(*fee_3_buf),
-                    fee_4: f64::from_le_bytes(*fee_4_buf),
-                    fee_5: f64::from_le_bytes(*fee_5_buf),
+                    fee_1: u64::from_le_bytes(*fee_1_buf),
+                    fee_2: u64::from_le_bytes(*fee_2_buf),
+                    fee_3: u64::from_le_bytes(*fee_3_buf),
+                    fee_4: u64::from_le_bytes(*fee_4_buf),
+                    fee_5: u64::from_le_bytes(*fee_5_buf),
                     amount_a: u64::from_le_bytes(*amount_a_buf),
                     amount_b: u64::from_le_bytes(*amount_b_buf),
                     tolerance: u64::from_le_bytes(*tolerance_buf),
