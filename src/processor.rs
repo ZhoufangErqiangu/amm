@@ -285,8 +285,8 @@ impl Processor {
         amount: u64,
         direction: u8,
     ) -> ProgramResult {
-        let accounts = array_ref![accounts, 0, 13];
-        let [pool_acc, mint_a_acc, mint_b_acc, vault_a_acc, vault_b_acc, _fee_vault, _fee_mint, pool_pda, user_wallet_acc, user_token_a_acc, user_token_b_acc, _user_fee_acc, token_program_acc] =
+        let accounts = array_ref![accounts, 0, 10];
+        let [pool_acc, vault_a_acc, vault_b_acc, _fee_vault, pool_pda, user_wallet_acc, user_token_a_acc, user_token_b_acc, _user_fee_acc, token_program_acc] =
             accounts;
         // use data
         let pool = AmmPool::unpack_unchecked(&pool_acc.data.borrow())?;
@@ -298,14 +298,6 @@ impl Processor {
             return Err(AmmError::InvalidSignAccount.into());
         }
         Self::check_account_owner(pool_acc, program_id)?;
-        if pool.mint_a != *mint_a_acc.key {
-            msg!("mint a not match {} {}", pool.mint_a, *mint_a_acc.key);
-            return Err(AmmError::InvalidMint.into());
-        }
-        if pool.mint_b != *mint_b_acc.key {
-            msg!("mint b not match {} {}", pool.mint_b, *mint_b_acc.key);
-            return Err(AmmError::InvalidMint.into());
-        }
         if pool.vault_a != *vault_a_acc.key {
             msg!("vault a not match {} {}", pool.vault_a, *vault_a_acc.key);
             return Err(AmmError::InvalidVault.into());
@@ -321,19 +313,19 @@ impl Processor {
         // check user token
         let user_token_a = Self::unpack_token_account(user_token_a_acc)?;
         let user_token_b = Self::unpack_token_account(user_token_b_acc)?;
-        if user_token_a.mint != *mint_a_acc.key {
+        if user_token_a.mint != vault_a.mint {
             msg!(
                 "user token a not match {} {}",
                 user_token_a.mint,
-                *mint_a_acc.key
+                vault_a.mint
             );
             return Err(AmmError::InvalidMint.into());
         }
-        if user_token_b.mint != *mint_b_acc.key {
+        if user_token_b.mint != vault_b.mint {
             msg!(
                 "user token b not match {} {}",
                 user_token_b.mint,
-                *mint_b_acc.key
+                vault_b.mint
             );
             return Err(AmmError::InvalidMint.into());
         }
