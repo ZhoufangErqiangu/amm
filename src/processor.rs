@@ -285,8 +285,8 @@ impl Processor {
         amount: u64,
         direction: u8,
     ) -> ProgramResult {
-        let accounts = array_ref![accounts, 0, 12];
-        let [pool_acc, mint_a_acc, mint_b_acc, vault_a_acc, vault_b_acc, _fee_vault, _fee_mint, pool_pda, user_wallet_acc, user_token_a_acc, user_token_b_acc, token_program_acc] =
+        let accounts = array_ref![accounts, 0, 13];
+        let [pool_acc, mint_a_acc, mint_b_acc, vault_a_acc, vault_b_acc, _fee_vault, _fee_mint, pool_pda, user_wallet_acc, user_token_a_acc, user_token_b_acc, _user_fee_acc, token_program_acc] =
             accounts;
         // use data
         let pool = AmmPool::unpack_unchecked(&pool_acc.data.borrow())?;
@@ -518,6 +518,7 @@ impl Processor {
         amount: u64,
     ) -> Result<(), ProgramError> {
         if amount == 0 {
+            msg!("transfer amount is zero.");
             return Err(ProgramError::Custom(321));
         }
         let ix = spl_token::instruction::transfer(
@@ -545,6 +546,7 @@ impl Processor {
         amount: u64,
     ) -> Result<(), ProgramError> {
         if amount == 0 {
+            msg!("transfer amount is zero.");
             return Err(ProgramError::Custom(321));
         }
         let seeds = &[pool_acc.key.as_ref(), &[nonce]];
