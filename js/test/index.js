@@ -19,10 +19,7 @@ const rpcUrl = 'http://localhost:8899/';
 // comm
 const connection = new Connection(rpcUrl, 'finalized');
 const idPath = '/home/ubuntu/solana_config/id.json';
-
-// program
-export const ammProgramId = 'aAmLZ9yP1adeZyRC9qMskX9e1Ma2gR4ktpyrDCWPkdm';
-const programId = new PublicKey(ammProgramId);
+const seed = 'mpAmmTest' + '0322';
 
 // only at local
 async function getPayer() {

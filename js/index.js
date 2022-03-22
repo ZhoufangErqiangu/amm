@@ -1,9 +1,152 @@
 import {
     Keypair,
     PublicKey,
-    Connection,
+    Transaction,
+    SystemProgram,
 } from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import BN from 'borsh';
-import bs58 from 'bs58';
-import { AmmInstruction } from '../instruction';
+import { AccountLayout, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { AmmInstruction } from './instruction.js';
+import { PoolDataLayout, getPoolData } from "./state.js";
+import { signAndSendTransaction } from "./lib/sendTransction.js";
+
+// program
+export const AmmProgramId = 'aAmLZ9yP1adeZyRC9qMskX9e1Ma2gR4ktpyrDCWPkdm';
+const programId = new PublicKey(AmmProgramId);
+
+export async function createPoolAccount(connection, wallet, seed) {
+    // use account
+    let walletAcc = wallet.publicKey;
+    // create
+    let poolAcc = await PublicKey.createWithSeed(walletAcc, seed, programId);
+    // check if exist
+    let poolData = await connection.getAccountInfo(poolAcc);
+    if (poolData) {
+        return { code: 2, msg: 'pool exist', data: poolAcc.toBase58() };
+    } else {
+        // make transaction
+        let lamports = await connection.getMinimumBalanceForRentExemption(PoolDataLayout.span);
+        let tx = new Transaction().add(SystemProgram.createAccountWithSeed({
+            fromPubkey: walletAcc,
+            newAccountPubkey: poolAcc,
+            seed,
+            lamports,
+            space: PoolDataLayout.span,
+            programId
+        }));
+        let res = await signAndSendTransaction(connection, wallet, null, tx);
+        if (res.code == 1) {
+            return { code: 1, msg: 'pool create ok', data: poolAcc.toBase58() };
+        } else {
+            return res;
+        }
+    }
+}
+
+export async function initPool(connection, wallet, poolKey, feeParams, amountA, amountB, mintAKey, mintBKey) {
+    // use account
+    let walletAcc = wallet.publicKey;
+    let poolAcc = new PublicKey(poolKey);
+    let [poolPDA, nonce] = await PublicKey.findProgramAddress([poolAcc.toBuffer()], programId);
+    let mintAAcc = new PublicKey(mintAKey);
+    let mintBAcc = new PublicKey(mintBKey);
+    // make transaction
+    let lamports = await connection.getMinimumBalanceForRentExemption(AccountLayout.span);
+    let vaultAAccount = new Keypair();
+    let vaultBAccount = new Keypair();
+    let feeVaultAccount = new Keypair();
+    // make transaction
+    let tx = new Transaction().add(SystemProgram.createAccount({
+        fromPubkey: walletAcc,
+        newAccountPubkey: vaultAAccount,
+        lamports,
+        space: AccountLayout.span,
+        programId: TOKEN_PROGRAM_ID,
+    }), Token.createInitAccountInstruction(
+        TOKEN_PROGRAM_ID,
+        mintAAcc,
+        vaultAAccount.publicKey,
+        poolPDA,
+    ), SystemProgram.createAccount({
+        fromPubkey: walletAcc,
+        newAccountPubkey: vaultBAccount,
+        lamports,
+        space: AccountLayout.span,
+        programId: TOKEN_PROGRAM_ID,
+    }), Token.createInitAccountInstruction(
+        TOKEN_PROGRAM_ID,
+        mintBAcc,
+        vaultBAccount.publicKey,
+        poolPDA,
+    ), SystemProgram.createAccount({
+        fromPubkey: walletAcc,
+        newAccountPubkey: feeVaultAccount,
+        lamports,
+        space: AccountLayout.span,
+        programId: TOKEN_PROGRAM_ID,
+    }), Token.createInitAccountInstruction(
+        TOKEN_PROGRAM_ID,
+        feeParams.mint,
+        feeVaultAccount.publicKey,
+        poolPDA,
+    ), AmmInstruction.createInitInstruction(
+        nonce,
+        feeParams.rate1,
+        feeParams.rate2,
+        feeParams.rate3,
+        feeParams.rate4,
+        feeParams.rate5,
+        amountA,
+        amountB,
+        poolAcc,
+        walletAcc,
+        mintAAcc,
+        mintBAcc,
+        vaultAAccount.publicKey,
+        vaultBAccount.publicKey,
+        feeVaultAccount.publicKey,
+        feeParams.receiver1,
+        feeParams.receiver2,
+        feeParams.receiver3,
+        feeParams.receiver4,
+        feeParams.receiver5,
+        feeParams.mint,
+        poolPDA,
+        userTokenAAcc,
+        userTokenBAcc,
+        TOKEN_PROGRAM_ID,
+        programId,
+    ));
+    let res = await signAndSendTransaction(connection, wallet, [
+        vaultAAccount,
+        vaultBAccount,
+        feeVaultAccount,
+    ], tx);
+    if (res.code == 1) {
+        return { code: 1, msg: 'init pool ok', data: poolAcc.toBase58() };
+    } else {
+        return res;
+    }
+}
+
+export async function getPoolPDA(connection, poolKey) {
+    // use account
+    let poolAcc = new PublicKey(poolKey);
+    // get data
+    let poolData;
+    {
+        let res = await getPoolData(connection, poolKey);
+        if (res.code == 1) {
+            poolData = res.data;
+        } else {
+            return res;
+        }
+    }
+    // create pda
+    let poolPDA = await PublicKey.createProgramAddress([
+        poolAcc.toBuffer(),
+        Buffer.from([poolData.nonce]),
+    ]);
+    return { code: 1, msg: 'get pda ok', data: poolPDA };
+}
+
+export { getPoolData };
