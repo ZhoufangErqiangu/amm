@@ -24,7 +24,7 @@ export async function createTokenAccount(connection, wallet, mintKey) {
     ));
     let res = await signAndSendTransaction(connection, wallet, [newAccount], tx);
     if (res.code == 1) {
-        return { code: 1, msg: 'token account create ok', data: newAccount.publicKey.toBase58() };
+        return { code: 1, msg: 'token account create ok', data: newAccount.publicKey.toBase58(), signature: res.data };
     } else {
         return res;
     }
@@ -114,7 +114,7 @@ export async function createMintAccount(connection, wallet, decimals = 9) {
     ));
     let res = await signAndSendTransaction(connection, wallet, [mintAccount], tx);
     if (res.code == 1) {
-        return { code: 1, msg: 'token account create ok', data: mintAccount.publicKey.toBase58() };
+        return { code: 1, msg: 'token account create ok', data: mintAccount.publicKey.toBase58(), signature: res.data };
     } else {
         return res;
     }
@@ -167,7 +167,7 @@ export async function mintToTokenAccount(connection, wallet, userTokenKey, amoun
     ));
     let res = await signAndSendTransaction(connection, wallet, null, tx);
     if (res.code == 1) {
-        return { code: 1, msg: 'mint to ok' };
+        return { code: 1, msg: 'mint to ok', signature: res.data };
     } else {
         return res;
     }

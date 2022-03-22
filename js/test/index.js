@@ -1,11 +1,7 @@
 import {
-    Keypair,
     PublicKey,
     Connection,
 } from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import BN from 'borsh';
-import bs58 from 'bs58';
 
 import { readKeypairFromFile } from '../lib/readKeypairFromFile.js';
 import { createMintAccount, createTokenAccount, mintToTokenAccount } from "../lib/tokenAccount.js";
@@ -174,7 +170,7 @@ async function main() {
                 mintBKey,
             );
             if (res.code == 1) {
-                console.log('init pool ok');
+                console.log('init pool ok', res.signature);
             } else {
                 return res;
             }
