@@ -1,3 +1,0 @@
-1. is nft's decimal fixed zero?
-2. is the fee mint the swaped one?
-3. if the fee mint is not the swaped one, how to calculate its price? using oracle?

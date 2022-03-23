@@ -9,7 +9,7 @@ import {
     createAssociatedTokenAccount,
     mintToTokenAccount
 } from "../lib/tokenAccount.js";
-import { AmmProgramId, createPoolAccount, findPool, findPoolByOwner, initPool } from "../index.js";
+import { AmmProgramId, createPoolAccount, findPool, findPoolByOwner, initPool, swap, Direction } from "../index.js";
 import { getPoolData } from "../state.js";
 
 // mainnet
@@ -132,6 +132,7 @@ async function main() {
     try {
         let payer = await getPayer();
         {
+            // find payer owns pool
             let list = await findPoolByOwner(connection, payer.publicKey.toBase58());
             if (list.length > 0) {
                 poolKey = list[0].pubkey.toBase58();
@@ -139,7 +140,9 @@ async function main() {
             }
         }
         if (poolKey == '') {
+            // if pool is null, start init
             {
+                // create mint user token account
                 let res = await initEnv(connection, payer);
                 if (res.code == 1) {
                     console.log('init env ok');
@@ -149,19 +152,7 @@ async function main() {
                 }
             }
             {
-                let res = await createPoolAccount(connection, payer, seed);
-                if (res.code == 1) {
-                    poolKey = res.data;
-                    console.log('create pool ok', poolKey);
-                } else if (res.code == 2) {
-                    poolKey = res.data;
-                    console.log('pool exist', res.data);
-                } else {
-                    console.error(res);
-                    return res;
-                }
-            }
-            {
+                // create and init pool
                 // 0.01 means 1%
                 let feeParams = {
                     // Liquidity Providers
@@ -190,7 +181,7 @@ async function main() {
                 let res = await initPool(
                     connection,
                     payer,
-                    poolKey,
+                    seed,
                     feeParams,
                     1,
                     150,
@@ -199,6 +190,7 @@ async function main() {
                     mintBKey,
                 );
                 if (res.code == 1) {
+                    poolKey = res.data;
                     console.log('init pool ok', res.data);
                 } else {
                     console.error(res);
@@ -207,11 +199,26 @@ async function main() {
             }
         }
         {
+            // get pool data, check if the data is  right
             let res = await getPoolData(connection, poolKey);
             if (res.code == 1) {
                 console.log('get pool data', res.data);
             }
         }
+        {
+            // swap b to a
+            let res = await swap(connection, payer, poolKey, 1, Direction.B2A);
+            if (res.code == 1) {
+                console.log('swap b2a ok');
+            }
+        }
+        // {
+        //     // swap a to b
+        //     let res = await swap(connection, payer, poolKey, 1, Direction.A2B);
+        //     if (res.code == 1) {
+        //         console.log('swap a2b ok');
+        //     }
+        // }
     } catch (err) {
         console.error(err);
     }

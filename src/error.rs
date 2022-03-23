@@ -56,6 +56,8 @@ pub enum AmmError {
     OutOfTolerance,
     #[error("NoughtTransfer")]
     NoughtTransfer,
+    #[error("InvalidPDA")]
+    InvalidPDA,
 }
 impl From<AmmError> for ProgramError {
     fn from(e: AmmError) -> Self {

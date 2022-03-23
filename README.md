@@ -1,8 +1,8 @@
-# Marco Polo AMM
+# AMM
 
 ## Overview
 
-Marco Polo AMM smart contract
+AMM smart contract
 
 ## Software framework
 
@@ -45,6 +45,6 @@ Read https://docs.solana.com/developing/programming-model/overview
 
 ```bash
 export PATH="/home/ubuntu/.local/share/solana/install/active_release/bin:$PATH"
-solana program deploy marco-polo-amm.so
+solana program deploy amm.so
 ```
 

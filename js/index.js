@@ -15,6 +15,7 @@ export const AmmProgramId = 'aAmLZ9yP1adeZyRC9qMskX9e1Ma2gR4ktpyrDCWPkdm';
 const programId = new PublicKey(AmmProgramId);
 
 const PercenMul = 10 ** 6;
+export const Direction = { A2B: 1, B2A: 2 };
 
 export async function createPoolAccount(connection, wallet, seed) {
     // use account
@@ -45,10 +46,16 @@ export async function createPoolAccount(connection, wallet, seed) {
     }
 }
 
-export async function initPool(connection, wallet, poolKey, feeParams, amountA, amountB, tolerance, mintAKey, mintBKey) {
+export async function initPool(connection, wallet, seed, feeParams, amountA, amountB, tolerance, mintAKey, mintBKey) {
     // use account
     let walletAcc = wallet.publicKey;
-    let poolAcc = new PublicKey(poolKey);
+    // create
+    let poolAcc = await PublicKey.createWithSeed(walletAcc, seed, programId);
+    // check if exist
+    let poolData = await connection.getAccountInfo(poolAcc);
+    if (poolData) {
+        return { code: -2, msg: 'pool exist', data: poolAcc.toBase58() };
+    }
     let [poolPDA, nonce] = await PublicKey.findProgramAddress([poolAcc.toBuffer()], programId);
     let mintAAcc = new PublicKey(mintAKey);
     let mintBAcc = new PublicKey(mintBKey);
@@ -90,12 +97,21 @@ export async function initPool(connection, wallet, poolKey, feeParams, amountA, 
         }
     }
     // create account
+    let lamportsP = await connection.getMinimumBalanceForRentExemption(PoolDataLayout.span);
     let lamports = await connection.getMinimumBalanceForRentExemption(AccountLayout.span);
     let vaultAAccount = new Keypair();
     let vaultBAccount = new Keypair();
     let feeVaultAccount = new Keypair();
     // make transaction
-    let tx = new Transaction().add(SystemProgram.createAccount({
+    let tx = new Transaction().add(SystemProgram.createAccountWithSeed({
+        fromPubkey: walletAcc,
+        basePubkey: walletAcc,
+        newAccountPubkey: poolAcc,
+        seed,
+        lamports: lamportsP,
+        space: PoolDataLayout.span,
+        programId
+    }), SystemProgram.createAccount({
         fromPubkey: walletAcc,
         newAccountPubkey: vaultAAccount.publicKey,
         lamports,
@@ -186,7 +202,7 @@ export async function getPoolPDA(connection, poolKey) {
     let poolPDA = await PublicKey.createProgramAddress([
         poolAcc.toBuffer(),
         Buffer.from([poolData.nonce]),
-    ]);
+    ], programId);
     return { code: 1, msg: 'get pda ok', data: poolPDA };
 }
 
@@ -322,7 +338,32 @@ export async function swap(connection, wallet, poolKey, amount, direction) {
         }
     }
     let userTokenAKey;
-
+    {
+        let res = await getTokenAccountMaxAmount(connection, wallet, poolData.mint_a);
+        if (res.code == 1) {
+            userTokenAKey = res.data.publicKey;
+        } else {
+            return res;
+        }
+    }
+    let userTokenBKey;
+    {
+        let res = await getTokenAccountMaxAmount(connection, wallet, poolData.mint_b);
+        if (res.code == 1) {
+            userTokenBKey = res.data.publicKey;
+        } else {
+            return res;
+        }
+    }
+    let userFeeTokenKey;
+    {
+        let res = await getTokenAccountMaxAmount(connection, wallet, poolData.fee_mint);
+        if (res.code == 1) {
+            userFeeTokenKey = res.data.publicKey;
+        } else {
+            return res;
+        }
+    }
     // make transaction
     let tx = new Transaction().add(AmmInstruction.createSwapInstrucion(
         amount * 10 ** mintAData.decimals,
@@ -333,7 +374,18 @@ export async function swap(connection, wallet, poolKey, amount, direction) {
         new PublicKey(poolData.fee_vault),
         poolPDA,
         walletAcc,
+        new PublicKey(userTokenAKey),
+        new PublicKey(userTokenBKey),
+        new PublicKey(userFeeTokenKey),
+        TOKEN_PROGRAM_ID,
+        programId,
     ));
+    let res = await signAndSendTransaction(connection, wallet, null, tx);
+    if (res.code == 1) {
+        return { code: 1, msg: 'pool create ok', data: poolAcc.toBase58(), signature: res.data };
+    } else {
+        return res;
+    }
 }
 
 export { getPoolData };

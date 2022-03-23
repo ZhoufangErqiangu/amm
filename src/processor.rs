@@ -82,6 +82,8 @@ impl Processor {
             accounts;
         // use data
         let mut pool = AmmPool::unpack(&pool_acc.data.borrow())?;
+        let pda_seed = &[pool_acc.key.as_ref(), &[nonce]];
+        let pda = solana_program::pubkey::Pubkey::create_program_address(pda_seed, program_id)?;
         // check
         if !owner_acc.is_signer {
             msg!("owner must sign");
@@ -135,6 +137,10 @@ impl Processor {
                 fee_vault.owner,
                 *pool_pda.key
             );
+            return Err(AmmError::InvalidOwner.into());
+        }
+        // check pda
+        if pda != *pool_pda.key {
             return Err(AmmError::InvalidOwner.into());
         }
         // transfer asset to vault
@@ -376,11 +382,11 @@ impl Processor {
                 )?;
             }
             _ => {
-                return Err(AmmError::InvalidMint.into());
+                return Err(AmmError::InvalidDirection.into());
             }
         }
         // check if k is within tolerance
-        Self::check_amount_tolerance(pool, amount, amount_transfer)?;
+        Self::check_amount_tolerance(pool, amount, amount_transfer, direction)?;
         Ok(())
     }
 
@@ -396,18 +402,18 @@ impl Processor {
     ) -> Result<u64, AmmError> {
         let k: u64 = pool.ka.checked_mul(pool.kb).unwrap();
         let changed_a = vault_a.amount.checked_sub(amount_a).unwrap();
-        if changed_a == 0 {
-            msg!(
-                "amount a too big, vault:{}, amount:{}",
-                vault_a.amount,
-                amount_a
-            );
-            return Err(AmmError::CalculationError);
-        }
         let amount_b = k
             .checked_div(changed_a)
             .and_then(|v| v.checked_sub(vault_b.amount))
             .unwrap();
+        if amount_b >= vault_b.amount {
+            msg!(
+                "amount b too big, vault:{}, amount:{}",
+                vault_b.amount,
+                amount_b
+            );
+            return Err(AmmError::CalculationError);
+        }
         Ok(amount_b)
     }
 
@@ -423,16 +429,16 @@ impl Processor {
     ) -> Result<u64, AmmError> {
         let k: u64 = pool.ka.checked_mul(pool.kb).unwrap();
         let changed_a = vault_a.amount.checked_add(amount_a).unwrap();
-        let temp: u64 = k.checked_div(changed_a).unwrap();
-        let amount_b: u64 = vault_b.amount.checked_sub(temp).unwrap();
-        if amount_b >= vault_b.amount {
+        if changed_a == 0 {
             msg!(
-                "amount b too big, vault:{}, amount:{}",
-                vault_b.amount,
-                amount_b
+                "amount a too big, vault:{}, amount:{}",
+                vault_a.amount,
+                amount_a
             );
             return Err(AmmError::CalculationError);
         }
+        let temp: u64 = k.checked_div(changed_a).unwrap();
+        let amount_b: u64 = vault_b.amount.checked_sub(temp).unwrap();
         Ok(amount_b)
     }
 
@@ -440,9 +446,26 @@ impl Processor {
         pool: AmmPool,
         amount: u64,
         amount_transfer: u64,
+        direction: u8,
     ) -> Result<(), AmmError> {
         let k_origin: u64 = pool.ka.checked_mul(pool.kb).unwrap();
-        let k_new: u64 = amount.checked_mul(amount_transfer).unwrap();
+        let ka_new: u64;
+        let kb_new: u64;
+        // 1 is a2b, 2 is b2a
+        match direction {
+            1 => {
+                ka_new = pool.ka.checked_sub(amount).unwrap();
+                kb_new = pool.kb.checked_add(amount_transfer).unwrap();
+            }
+            2 => {
+                ka_new = pool.ka.checked_add(amount).unwrap();
+                kb_new = pool.kb.checked_sub(amount_transfer).unwrap();
+            }
+            _ => {
+                return Err(AmmError::InvalidDirection.into());
+            }
+        }
+        let k_new: u64 = ka_new.checked_mul(kb_new).unwrap();
         let tolerance: u64;
         if k_origin > k_new {
             tolerance = k_origin - k_new;
@@ -585,6 +608,7 @@ impl PrintProgramError for AmmError {
             AmmError::CalculationError => msg!("Error: CalculationError"),
             AmmError::OutOfTolerance => msg!("Error: OutOfTolerance"),
             AmmError::NoughtTransfer => msg!("Error: NoughtTransfer"),
+            AmmError::InvalidPDA => msg!("Error: InvalidPDA"),
         }
     }
 }
