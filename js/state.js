@@ -1,6 +1,8 @@
 import { PublicKey } from '@solana/web3.js';
 import * as BufferLayout from 'buffer-layout';
 
+const PercenMul = 10 ** 6;
+
 // buffer layout
 export const PoolDataLayout = BufferLayout.struct([
     BufferLayout.u8("status"),
@@ -36,6 +38,11 @@ export async function getPoolData(connection, poolKey) {
     if (poolData) {
         let temp = PoolDataLayout.decode(poolData.data);
         temp['poolKey'] = poolKey;
+        temp.fee_1 /= PercenMul;
+        temp.fee_2 /= PercenMul;
+        temp.fee_3 /= PercenMul;
+        temp.fee_4 /= PercenMul;
+        temp.fee_5 /= PercenMul;
         return { code: 1, msg: 'get pool data ok', data: handleKey(temp) };
     } else {
         return { code: 0, msg: 'pool is null', data: null };

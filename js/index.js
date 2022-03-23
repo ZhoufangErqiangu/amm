@@ -45,7 +45,7 @@ export async function createPoolAccount(connection, wallet, seed) {
     }
 }
 
-export async function initPool(connection, wallet, poolKey, feeParams, amountA, amountB, mintAKey, mintBKey) {
+export async function initPool(connection, wallet, poolKey, feeParams, amountA, amountB, tolerance, mintAKey, mintBKey) {
     // use account
     let walletAcc = wallet.publicKey;
     let poolAcc = new PublicKey(poolKey);
@@ -137,6 +137,7 @@ export async function initPool(connection, wallet, poolKey, feeParams, amountA, 
         feeParams.rate5 * PercenMul,
         amountA * 10 ** mintAData.decimals,
         amountB * 10 ** mintBData.decimals,
+        tolerance,
         poolAcc,
         walletAcc,
         mintAAcc,
@@ -187,6 +188,17 @@ export async function getPoolPDA(connection, poolKey) {
         Buffer.from([poolData.nonce]),
     ]);
     return { code: 1, msg: 'get pda ok', data: poolPDA };
+}
+
+export async function findPool(connection) {
+    let config = {
+        commitment: 'finalized',
+        filters: [
+            { dataSize: PoolDataLayout.span },
+        ],
+    };
+    let list = await connection.getParsedProgramAccounts(programId, config);
+    return list;
 }
 
 export async function findPoolByOwner(connection, ownerKey) {

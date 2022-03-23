@@ -9,7 +9,8 @@ import {
     createAssociatedTokenAccount,
     mintToTokenAccount
 } from "../lib/tokenAccount.js";
-import { AmmProgramId, createPoolAccount, initPool } from "../index.js";
+import { AmmProgramId, createPoolAccount, findPool, findPoolByOwner, initPool } from "../index.js";
+import { getPoolData } from "../state.js";
 
 // mainnet
 // const rpcUrl = 'https://solana-api.projectserum.com/';
@@ -131,68 +132,84 @@ async function main() {
     try {
         let payer = await getPayer();
         {
-            let res = await initEnv(connection, payer);
-            if (res.code == 1) {
-                console.log('init env ok');
-            } else {
-                console.error(res);
-                return res;
+            let list = await findPoolByOwner(connection, payer.publicKey.toBase58());
+            if (list.length > 0) {
+                poolKey = list[0].pubkey.toBase58();
+                console.log('pool exist', poolKey);
+            }
+        }
+        if (poolKey == '') {
+            {
+                let res = await initEnv(connection, payer);
+                if (res.code == 1) {
+                    console.log('init env ok');
+                } else {
+                    console.error(res);
+                    return res;
+                }
+            }
+            {
+                let res = await createPoolAccount(connection, payer, seed);
+                if (res.code == 1) {
+                    poolKey = res.data;
+                    console.log('create pool ok', poolKey);
+                } else if (res.code == 2) {
+                    poolKey = res.data;
+                    console.log('pool exist', res.data);
+                } else {
+                    console.error(res);
+                    return res;
+                }
+            }
+            {
+                // 0.01 means 1%
+                let feeParams = {
+                    // Liquidity Providers
+                    rate1: 0.002,
+                    // Mercanti Stakers
+                    rate2: 0.0005,
+                    // Project / DAO
+                    rate3: 0.0015,
+                    // $MARCO Buy-Back & Burn
+                    rate4: 0.0005,
+                    // reserved
+                    rate5: 0,
+                    // Liquidity Providers
+                    receiver1: new PublicKey(feeReceiver),
+                    // Mercanti Stakers
+                    receiver2: new PublicKey(feeReceiver),
+                    // Project / DAO
+                    receiver3: new PublicKey(feeReceiver),
+                    // $MARCO Buy-Back & Burn
+                    receiver4: new PublicKey(feeReceiver),
+                    // reserved
+                    receiver5: new PublicKey(feeReceiver),
+                    // ?must be marco?
+                    mint: new PublicKey(feeMintKey),
+                }
+                let res = await initPool(
+                    connection,
+                    payer,
+                    poolKey,
+                    feeParams,
+                    1,
+                    150,
+                    255,
+                    mintAKey,
+                    mintBKey,
+                );
+                if (res.code == 1) {
+                    console.log('init pool ok', res.data);
+                } else {
+                    console.error(res);
+                    return res;
+                }
             }
         }
         {
-            let res = await createPoolAccount(connection, payer, seed);
+            let res = await getPoolData(connection, poolKey);
             if (res.code == 1) {
-                poolKey = res.data;
-                console.log('create pool ok', poolKey);
-            } else if (res.code == 2) {
-                poolKey = res.data;
-                console.log('pool exist', res.data);
-            } else {
-                console.error(res);
-                return res;
-            }
-        }
-        {
-            // 0.01 means 1%
-            let feeParams = {
-                // Liquidity Providers
-                rate1: 0.002,
-                // Mercanti Stakers
-                rate2: 0.0005,
-                // Project / DAO
-                rate3: 0.0015,
-                // $MARCO Buy-Back & Burn
-                rate4: 0.0005,
-                // reserved
-                rate5: 0,
-                // Liquidity Providers
-                receiver1: new PublicKey(feeReceiver),
-                // Mercanti Stakers
-                receiver2: new PublicKey(feeReceiver),
-                // Project / DAO
-                receiver3: new PublicKey(feeReceiver),
-                // $MARCO Buy-Back & Burn
-                receiver4: new PublicKey(feeReceiver),
-                // reserved
-                receiver5: new PublicKey(feeReceiver),
-                // ?must be marco?
-                mint: new PublicKey(feeMintKey),
-            }
-            let res = await initPool(
-                connection,
-                payer,
-                poolKey,
-                feeParams,
-                1,
-                150,
-                mintAKey,
-                mintBKey,
-            );
-            if (res.code == 1) {
-                console.log('init pool ok', res.data);
-            } else {
-                console.error(res);
-                return res;
+                console.log('get pool data', res.data);
             }
         }
     } catch (err) {

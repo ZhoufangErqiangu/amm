@@ -42,6 +42,7 @@ export class AmmInstruction {
         fee_5,
         amount_a,
         amount_b,
+        tolerance,
         pool_acc,
         owner_acc,
         mint_a_acc,
@@ -71,6 +72,7 @@ export class AmmInstruction {
             'fee_5', fee_5,
             'amount_a', amount_a,
             'amount_b', amount_b,
+            'tolerance', tolerance,
             'pool_acc', pool_acc.toBase58(),
             'owner_acc', owner_acc.toBase58(),
             'mint_a_acc', mint_a_acc.toBase58(),
@@ -102,6 +104,7 @@ export class AmmInstruction {
             fee_5,
             amount_a,
             amount_b,
+            tolerance,
         }, data);
         // keys accounts
         let keys = [
