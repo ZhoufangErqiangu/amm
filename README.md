@@ -4,6 +4,8 @@
 
 AMM smart contract
 
+Thie code has not been audited, use on your own risk.
+
 ## Software framework
 
 Read https://docs.solana.com/developing/programming-model/overview

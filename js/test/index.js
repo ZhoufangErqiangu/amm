@@ -206,19 +206,19 @@ async function main() {
             }
         }
         {
+            // swap a to b
+            let res = await swap(connection, payer, poolKey, 1, Direction.A2B);
+            if (res.code == 1) {
+                console.log('swap a2b ok');
+            }
+        }
+        {
             // swap b to a
             let res = await swap(connection, payer, poolKey, 1, Direction.B2A);
             if (res.code == 1) {
                 console.log('swap b2a ok');
             }
         }
-        // {
-        //     // swap a to b
-        //     let res = await swap(connection, payer, poolKey, 1, Direction.A2B);
-        //     if (res.code == 1) {
-        //         console.log('swap a2b ok');
-        //     }
-        // }
     } catch (err) {
         console.error(err);
     }

@@ -386,14 +386,14 @@ impl Processor {
             }
         }
         // check if k is within tolerance
-        Self::check_amount_tolerance(pool, amount, amount_transfer, direction)?;
+        Self::check_amount_tolerance(pool, direction, amount, amount_transfer, vault_a, vault_b)?;
         Ok(())
     }
 
     /// calculate a2b amount
     /// A*B=k
-    /// (A-a)*(B+b)=k
-    /// b=k/(A-a)-B
+    /// (A+a)*(B-b)=k
+    /// b=B-k/(A+a)
     fn calculate_amount_a2b(
         pool: AmmPool,
         amount_a: u64,
@@ -401,11 +401,9 @@ impl Processor {
         vault_b: spl_token::state::Account,
     ) -> Result<u64, AmmError> {
         let k: u64 = pool.ka.checked_mul(pool.kb).unwrap();
-        let changed_a = vault_a.amount.checked_sub(amount_a).unwrap();
-        let amount_b = k
-            .checked_div(changed_a)
-            .and_then(|v| v.checked_sub(vault_b.amount))
-            .unwrap();
+        let changed_a = vault_a.amount.checked_add(amount_a).unwrap();
+        let temp: u64 = k.checked_div(changed_a).unwrap();
+        let amount_b: u64 = vault_b.amount.checked_sub(temp).unwrap();
         if amount_b >= vault_b.amount {
             msg!(
                 "amount b too big, vault:{}, amount:{}",
@@ -419,8 +417,8 @@ impl Processor {
 
     /// calculate b2a amount
     /// A*B=k
-    /// (A+a)*(B-b)=k
-    /// b=B-k/(A+a)
+    /// (A-a)*(B+b)=k
+    /// b=k/(A-a)-B
     fn calculate_amount_b2a(
         pool: AmmPool,
         amount_a: u64,
@@ -428,7 +426,7 @@ impl Processor {
         vault_b: spl_token::state::Account,
     ) -> Result<u64, AmmError> {
         let k: u64 = pool.ka.checked_mul(pool.kb).unwrap();
-        let changed_a = vault_a.amount.checked_add(amount_a).unwrap();
+        let changed_a = vault_a.amount.checked_sub(amount_a).unwrap();
         if changed_a == 0 {
             msg!(
                 "amount a too big, vault:{}, amount:{}",
@@ -438,15 +436,17 @@ impl Processor {
             return Err(AmmError::CalculationError);
         }
         let temp: u64 = k.checked_div(changed_a).unwrap();
-        let amount_b: u64 = vault_b.amount.checked_sub(temp).unwrap();
+        let amount_b: u64 = temp.checked_sub(vault_b.amount).unwrap();
         Ok(amount_b)
     }
 
     fn check_amount_tolerance(
         pool: AmmPool,
+        direction: u8,
         amount: u64,
         amount_transfer: u64,
-        direction: u8,
+        vault_a: spl_token::state::Account,
+        vault_b: spl_token::state::Account,
     ) -> Result<(), AmmError> {
         let k_origin: u64 = pool.ka.checked_mul(pool.kb).unwrap();
         let ka_new: u64;
@@ -454,12 +454,12 @@ impl Processor {
         // 1 is a2b, 2 is b2a
         match direction {
             1 => {
-                ka_new = pool.ka.checked_sub(amount).unwrap();
-                kb_new = pool.kb.checked_add(amount_transfer).unwrap();
+                ka_new = vault_a.amount.checked_add(amount).unwrap();
+                kb_new = vault_b.amount.checked_sub(amount_transfer).unwrap();
             }
             2 => {
-                ka_new = pool.ka.checked_add(amount).unwrap();
-                kb_new = pool.kb.checked_sub(amount_transfer).unwrap();
+                ka_new = vault_a.amount.checked_sub(amount).unwrap();
+                kb_new = vault_b.amount.checked_add(amount_transfer).unwrap();
             }
             _ => {
                 return Err(AmmError::InvalidDirection.into());
