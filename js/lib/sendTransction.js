@@ -1,4 +1,4 @@
-export async function signAndSendTransaction(connection, wallet, partialSignerList, transaction,) {
+export async function signAndSendTransaction(connection, wallet, partialSignerList, transaction) {
     // use account
     let walletAcc = wallet.publicKey;
     // make transaction
@@ -11,6 +11,7 @@ export async function signAndSendTransaction(connection, wallet, partialSignerLi
         if (wallet.secretKey) {
             // only at local
             transaction.partialSign(wallet);
+            signed = transaction;
         } else {
             signed = await wallet.signTransaction(transaction);
         }
@@ -55,18 +56,24 @@ export async function sendTransaction(connection, transaction) {
 export async function getSignatureStatus(connection, signatrue) {
     let temp = { value: null };
     let flag = true;
-    let startDate = new Date();
+    // let startDate = new Date();
     while (flag) {
         temp = await connection.getSignatureStatus(signatrue);
         if (temp.value) {
-            let nowDate = new Date();
-            let passTime = nowDate.getTime() - startDate.getTime();
-            console.log('transaction', temp.value.confirmationStatus, passTime, 'ms');
+            // let nowDate = new Date();
+            // let passTime = nowDate.getTime() - startDate.getTime();
+            // console.log('transaction', temp.value.confirmationStatus, passTime, 'ms');
             if (temp.value.confirmationStatus == 'finalized') {
                 console.log('transaction finalized', signatrue);
                 flag = false;
                 return temp.value;
+            } else {
+                await wait(1000);
             }
         }
     }
 }
+
+function wait(ms) {
+    return new Promise(resolve => setTimeout(() => resolve(), ms));
+};

@@ -1,4 +1,10 @@
-import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, MintLayout, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import {
+    MintLayout,
+    AccountLayout,
+    TOKEN_PROGRAM_ID,
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+    Token
+} from "@solana/spl-token";
 import { Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import { signAndSendTransaction } from "./sendTransction.js";
 
@@ -15,11 +21,41 @@ export async function createTokenAccount(connection, wallet, mintKey) {
         newAccountPubkey: newAccount.publicKey,
         lamports,
         space: AccountLayout.span,
-        programId: ASSOCIATED_TOKEN_PROGRAM_ID,
+        programId: TOKEN_PROGRAM_ID,
     }), Token.createInitAccountInstruction(
-        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
         mintAcc,
         newAccount.publicKey,
+        walletAcc,
+    ));
+    let res = await signAndSendTransaction(connection, wallet, [newAccount], tx);
+    if (res.code == 1) {
+        return { code: 1, msg: 'token account create ok', data: newAccount.publicKey.toBase58(), signature: res.data };
+    } else {
+        return res;
+    }
+}
+
+export async function createAssociatedTokenAccount(connection, wallet, mintKey) {
+    // use account
+    let walletAcc = wallet.publicKey;
+    // create account
+    let newAccount = new Keypair();
+    let mintAcc = new PublicKey(mintKey);
+    let lamports = await connection.getMinimumBalanceForRentExemption(AccountLayout.span);
+    // make transction
+    let tx = new Transaction().add(SystemProgram.createAccount({
+        fromPubkey: walletAcc,
+        newAccountPubkey: newAccount.publicKey,
+        lamports,
+        space: AccountLayout.span,
+        programId: ASSOCIATED_TOKEN_PROGRAM_ID,
+    }), Token.createAssociatedTokenAccountInstruction(
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        mintAcc,
+        newAccount.publicKey,
+        walletAcc,
         walletAcc,
     ));
     let res = await signAndSendTransaction(connection, wallet, [newAccount], tx);
@@ -105,7 +141,7 @@ export async function createMintAccount(connection, wallet, decimals = 9) {
         lamports,
         space: MintLayout.span,
         programId: TOKEN_PROGRAM_ID,
-    }), Token.createInitAccountInstruction(
+    }), Token.createInitMintInstruction(
         TOKEN_PROGRAM_ID,
         mintAccount.publicKey,
         decimals,
@@ -162,7 +198,7 @@ export async function mintToTokenAccount(connection, wallet, userTokenKey, amoun
         new PublicKey(userTokenData.mint),
         userTokenAcc,
         walletAcc,
-        null,
+        [],
         amount * 10 ** userTokenData.decimals,
     ));
     let res = await signAndSendTransaction(connection, wallet, null, tx);

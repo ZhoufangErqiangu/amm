@@ -30,6 +30,7 @@ export async function createPoolAccount(connection, wallet, seed) {
     let lamports = await connection.getMinimumBalanceForRentExemption(PoolDataLayout.span);
     let tx = new Transaction().add(SystemProgram.createAccountWithSeed({
         fromPubkey: walletAcc,
+        basePubkey: walletAcc,
         newAccountPubkey: poolAcc,
         seed,
         lamports,
@@ -51,20 +52,20 @@ export async function initPool(connection, wallet, poolKey, feeParams, amountA, 
     let [poolPDA, nonce] = await PublicKey.findProgramAddress([poolAcc.toBuffer()], programId);
     let mintAAcc = new PublicKey(mintAKey);
     let mintBAcc = new PublicKey(mintBKey);
-    let userTokenAAcc;
+    let userTokenAKey;
     {
         let res = await getTokenAccountMaxAmount(connection, wallet, mintAKey);
         if (res.code == 1) {
-            userTokenAAcc = res.data.publicKey;
+            userTokenAKey = res.data.publicKey;
         } else {
             return res;
         }
     }
-    let userTokenBAcc;
+    let userTokenBKey;
     {
         let res = await getTokenAccountMaxAmount(connection, wallet, mintBKey);
         if (res.code == 1) {
-            userTokenBAcc = res.data.publicKey;
+            userTokenBKey = res.data.publicKey;
         } else {
             return res;
         }
@@ -96,7 +97,7 @@ export async function initPool(connection, wallet, poolKey, feeParams, amountA, 
     // make transaction
     let tx = new Transaction().add(SystemProgram.createAccount({
         fromPubkey: walletAcc,
-        newAccountPubkey: vaultAAccount,
+        newAccountPubkey: vaultAAccount.publicKey,
         lamports,
         space: AccountLayout.span,
         programId: TOKEN_PROGRAM_ID,
@@ -107,7 +108,7 @@ export async function initPool(connection, wallet, poolKey, feeParams, amountA, 
         poolPDA,
     ), SystemProgram.createAccount({
         fromPubkey: walletAcc,
-        newAccountPubkey: vaultBAccount,
+        newAccountPubkey: vaultBAccount.publicKey,
         lamports,
         space: AccountLayout.span,
         programId: TOKEN_PROGRAM_ID,
@@ -118,7 +119,7 @@ export async function initPool(connection, wallet, poolKey, feeParams, amountA, 
         poolPDA,
     ), SystemProgram.createAccount({
         fromPubkey: walletAcc,
-        newAccountPubkey: feeVaultAccount,
+        newAccountPubkey: feeVaultAccount.publicKey,
         lamports,
         space: AccountLayout.span,
         programId: TOKEN_PROGRAM_ID,
@@ -129,11 +130,11 @@ export async function initPool(connection, wallet, poolKey, feeParams, amountA, 
         poolPDA,
     ), AmmInstruction.createInitInstruction(
         nonce,
-        feeParams.rate1 * 10 ** PercenMul,
-        feeParams.rate2 * 10 ** PercenMul,
-        feeParams.rate3 * 10 ** PercenMul,
-        feeParams.rate4 * 10 ** PercenMul,
-        feeParams.rate5 * 10 ** PercenMul,
+        feeParams.rate1 * PercenMul,
+        feeParams.rate2 * PercenMul,
+        feeParams.rate3 * PercenMul,
+        feeParams.rate4 * PercenMul,
+        feeParams.rate5 * PercenMul,
         amountA * 10 ** mintAData.decimals,
         amountB * 10 ** mintBData.decimals,
         poolAcc,
@@ -150,8 +151,8 @@ export async function initPool(connection, wallet, poolKey, feeParams, amountA, 
         new PublicKey(feeParams.receiver5),
         new PublicKey(feeParams.mint),
         poolPDA,
-        userTokenAAcc,
-        userTokenBAcc,
+        new PublicKey(userTokenAKey),
+        new PublicKey(userTokenBKey),
         TOKEN_PROGRAM_ID,
         programId,
     ));
@@ -309,7 +310,7 @@ export async function swap(connection, wallet, poolKey, amount, direction) {
         }
     }
     let userTokenAKey;
-    
+
     // make transaction
     let tx = new Transaction().add(AmmInstruction.createSwapInstrucion(
         amount * 10 ** mintAData.decimals,

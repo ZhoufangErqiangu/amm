@@ -2,10 +2,14 @@ import {
     PublicKey,
     Connection,
 } from "@solana/web3.js";
-
 import { readKeypairFromFile } from '../lib/readKeypairFromFile.js';
-import { createMintAccount, createTokenAccount, mintToTokenAccount } from "../lib/tokenAccount.js";
-import { createPoolAccount, initPool } from "../index.js";
+import {
+    createMintAccount,
+    createTokenAccount,
+    createAssociatedTokenAccount,
+    mintToTokenAccount
+} from "../lib/tokenAccount.js";
+import { AmmProgramId, createPoolAccount, initPool } from "../index.js";
 
 // mainnet
 // const rpcUrl = 'https://solana-api.projectserum.com/';
@@ -16,7 +20,7 @@ const rpcUrl = 'http://localhost:8899/';
 
 // comm
 const connection = new Connection(rpcUrl, 'finalized');
-const idPath = '/home/ubuntu/solana_config/id.json';
+const idPath = '/home/alex/.config/solana/id.json';
 const seed = 'mpAmmTest' + '0322';
 
 // key
@@ -39,6 +43,7 @@ async function initEnv(connection, wallet) {
         let res = await createMintAccount(connection, wallet, 0);
         if (res.code == 1) {
             mintAKey = res.data;
+            console.log('create mint a', mintAKey);
         } else {
             console.error('create mint a error', res);
             return res;
@@ -48,6 +53,7 @@ async function initEnv(connection, wallet) {
         let res = await createMintAccount(connection, wallet);
         if (res.code == 1) {
             mintBKey = res.data;
+            console.log('create mint b', mintBKey);
         } else {
             console.error('create mint b error', res);
             return res;
@@ -59,6 +65,7 @@ async function initEnv(connection, wallet) {
         let res = await createTokenAccount(connection, wallet, mintAKey);
         if (res.code == 1) {
             userTokenAKey = res.data;
+            console.log('create user token a', userTokenAKey);
         } else {
             console.error('create user token a error', res);
             return res;
@@ -69,6 +76,7 @@ async function initEnv(connection, wallet) {
         let res = await createTokenAccount(connection, wallet, mintBKey);
         if (res.code == 1) {
             userTokenBKey = res.data;
+            console.log('create user token b', userTokenBKey);
         } else {
             console.error('create user token b error', res);
             return res;
@@ -77,14 +85,18 @@ async function initEnv(connection, wallet) {
     // mint token for user
     {
         let res = await mintToTokenAccount(connection, wallet, userTokenAKey, 3);
-        if (res.code != 1) {
+        if (res.code == 1) {
+            console.log('mint to user token a ok');
+        } else {
             console.error('mint to user token a error', res);
             return res;
         }
     }
     {
         let res = await mintToTokenAccount(connection, wallet, userTokenBKey, 1000);
-        if (res.code != 1) {
+        if (res.code == 1) {
+            console.log('mint to user token b ok');
+        } else {
             console.error('mint to user token b error', res);
             return res;
         }
@@ -94,6 +106,7 @@ async function initEnv(connection, wallet) {
         let res = await createMintAccount(connection, wallet);
         if (res.code == 1) {
             feeMintKey = res.data;
+            console.log('create fee mint', feeMintKey);
         } else {
             console.error('create fee mint error', res);
             return res;
@@ -104,8 +117,9 @@ async function initEnv(connection, wallet) {
         let res = await createTokenAccount(connection, wallet, feeMintKey);
         if (res.code == 1) {
             feeReceiver = res.data;
+            console.log('create user fee receiver ok', feeReceiver);
         } else {
-            console.error('create user token a error', res);
+            console.error('create user fee receiver error', res);
             return res;
         }
     }
@@ -121,6 +135,7 @@ async function main() {
             if (res.code == 1) {
                 console.log('init env ok');
             } else {
+                console.error(res);
                 return res;
             }
         }
@@ -129,7 +144,11 @@ async function main() {
             if (res.code == 1) {
                 poolKey = res.data;
                 console.log('create pool ok', poolKey);
+            } else if (res.code == 2) {
+                poolKey = res.data;
+                console.log('pool exist', res.data);
             } else {
+                console.error(res);
                 return res;
             }
         }
@@ -170,12 +189,12 @@ async function main() {
                 mintBKey,
             );
             if (res.code == 1) {
-                console.log('init pool ok', res.signature);
+                console.log('init pool ok', res.data);
             } else {
+                console.error(res);
                 return res;
             }
         }
-
     } catch (err) {
         console.error(err);
     }
