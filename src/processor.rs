@@ -51,6 +51,10 @@ impl Processor {
                 msg!("Instruction: Update Tolerance");
                 Self::process_update_tolerance(program_id, accounts, tolerance)
             }
+            AmmInstruction::Terminate {} => {
+                msg!("Instruction: Terminate");
+                Self::process_terminate(program_id, accounts)
+            }
             AmmInstruction::Swap { amount, direction } => {
                 msg!("Instruction: Swap");
                 Self::process_swap(program_id, accounts, amount, direction)
@@ -264,6 +268,79 @@ impl Processor {
         Ok(())
     }
 
+    /// Processes `Terminate` instruction.
+    fn process_terminate(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        let accounts = array_ref![accounts, 0, 9];
+        let [pool_acc, owner_acc, vault_a_acc, vault_b_acc, fee_vault_acc, pool_pda, owner_token_a_acc, owner_token_b_acc, token_program_acc] =
+            accounts;
+        // use data
+        let mut pool = AmmPool::unpack_unchecked(&pool_acc.data.borrow())?;
+        let vault_a = Self::unpack_token_account(vault_a_acc)?;
+        let vault_b = Self::unpack_token_account(vault_b_acc)?;
+        let fee_vault = Self::unpack_token_account(fee_vault_acc)?;
+        // check
+        if !owner_acc.is_signer {
+            msg!("owner must sign");
+            return Err(AmmError::InvalidSignAccount.into());
+        }
+        Self::check_account_owner(pool_acc, program_id)?;
+        if pool.owner != *owner_acc.key {
+            msg!("owner not match {} {}", pool.owner, *owner_acc.key);
+            return Err(AmmError::InvalidOwner.into());
+        }
+        if pool.status == 0 {
+            msg!("pool status:{}", pool.status);
+            return Err(AmmError::InvalidStatus.into());
+        }
+        if pool.vault_a != *vault_a_acc.key {
+            msg!("vault a not match {} {}", pool.vault_a, *vault_a_acc.key);
+            return Err(AmmError::InvalidVault.into());
+        }
+        if pool.vault_b != *vault_b_acc.key {
+            msg!("vault b not match {} {}", pool.vault_b, *vault_b_acc.key);
+            return Err(AmmError::InvalidVault.into());
+        }
+        if pool.fee_vault != *fee_vault_acc.key {
+            msg!("vault b not match {} {}", pool.vault_b, *vault_b_acc.key);
+            return Err(AmmError::InvalidVault.into());
+        }
+        // transfer vault a
+        Self::token_transfer_signed(
+            pool_acc.clone(),
+            pool.nonce,
+            token_program_acc.clone(),
+            vault_a_acc.clone(),
+            owner_token_a_acc.clone(),
+            pool_pda.clone(),
+            vault_a.amount,
+        )?;
+        // transfer vault b
+        Self::token_transfer_signed(
+            pool_acc.clone(),
+            pool.nonce,
+            token_program_acc.clone(),
+            vault_b_acc.clone(),
+            owner_token_b_acc.clone(),
+            pool_pda.clone(),
+            vault_b.amount,
+        )?;
+        // transfer fee vault
+        Self::token_transfer_signed(
+            pool_acc.clone(),
+            pool.nonce,
+            token_program_acc.clone(),
+            fee_vault_acc.clone(),
+            owner_token_b_acc.clone(),
+            pool_pda.clone(),
+            fee_vault.amount,
+        )?;
+        // update pool
+        pool.status = 0;
+        // pack pool
+        AmmPool::pack(pool, &mut pool_acc.data.borrow_mut())?;
+        Ok(())
+    }
+
     /// Processes `Swap` instruction.
     fn process_swap(
         program_id: &Pubkey,
@@ -272,7 +349,7 @@ impl Processor {
         direction: u8,
     ) -> ProgramResult {
         let accounts = array_ref![accounts, 0, 9];
-        let [pool_acc, vault_a_acc, vault_b_acc, fee_vault_acc, pool_pda, user_wallet_acc, user_token_a_acc, user_token_b_acc,  token_program_acc] =
+        let [pool_acc, vault_a_acc, vault_b_acc, fee_vault_acc, pool_pda, user_wallet_acc, user_token_a_acc, user_token_b_acc, token_program_acc] =
             accounts;
         // use data
         let pool = AmmPool::unpack_unchecked(&pool_acc.data.borrow())?;
@@ -392,8 +469,6 @@ impl Processor {
             accounts;
         // use data
         let pool = AmmPool::unpack_unchecked(&pool_acc.data.borrow())?;
-        let pda_seed = &[pool_acc.clone().key.as_ref(), &[pool.nonce]];
-        let pda = solana_program::pubkey::Pubkey::create_program_address(pda_seed, program_id)?;
         // check
         if !owner_acc.is_signer {
             msg!("owner must sign");
@@ -413,10 +488,6 @@ impl Processor {
                 *fee_vault_acc.key
             );
             return Err(AmmError::InvalidVault.into());
-        }
-        // check pda
-        if pda != *pool_pda.key {
-            return Err(AmmError::InvalidPDA.into());
         }
         // transfer fee to receiver
         if fee_vault.amount > 0 {

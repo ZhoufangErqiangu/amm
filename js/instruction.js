@@ -177,6 +177,31 @@ export class AmmInstruction {
         let instrucion = new TransactionInstruction({ keys, programId, data });
         return instrucion;
     }
+    static createTerminateInstruction(
+        pool_acc,
+        owner_acc,
+        programId,
+    ) {
+        console.log(
+            'update pool',
+            'pool_acc', pool_acc.toBase58(),
+            'owner_acc', owner_acc.toBase58(),
+            'program id', programId.toBase58()
+        );
+        // data
+        let data = Buffer.alloc(UpdatePoolBuffer.span);
+        UpdatePoolBuffer.encode({
+            i: 1,
+        }, data);
+        // keys accounts
+        let keys = [
+            { pubkey: pool_acc, isSigner: false, isWritable: true },
+            { pubkey: owner_acc, isSigner: true, isWritable: false },
+        ];
+        // make instruction
+        let instrucion = new TransactionInstruction({ keys, programId, data });
+        return instrucion;
+    }
     static createSwapInstrucion(
         amount,
         direction,
@@ -223,6 +248,43 @@ export class AmmInstruction {
             { pubkey: user_wallet_acc, isSigner: true, isWritable: false },
             { pubkey: user_token_a_acc, isSigner: false, isWritable: true },
             { pubkey: user_token_b_acc, isSigner: false, isWritable: true },
+            { pubkey: token_program_acc, isSigner: false, isWritable: false },
+        ];
+        // make instruction
+        let instrucion = new TransactionInstruction({ keys, programId, data });
+        return instrucion;
+    }
+    static createWithdrawalFeeInstruction(
+        pool_acc,
+        owner_acc,
+        fee_vault_acc,
+        fee_receiver_acc,
+        pool_pda,
+        token_program_acc,
+        programId,
+    ) {
+        console.log(
+            'update pool',
+            'pool_acc', pool_acc.toBase58(),
+            'owner_acc', owner_acc.toBase58(),
+            'fee_vault_acc,', fee_vault_acc.toBase58(),
+            'fee_receiver_acc,', fee_receiver_acc.toBase58(),
+            'pool_pda,', pool_pda.toBase58(),
+            'token_program_acc,', token_program_acc.toBase58(),
+            'program id', programId.toBase58()
+        );
+        // data
+        let data = Buffer.alloc(UpdatePoolBuffer.span);
+        UpdatePoolBuffer.encode({
+            i: 80,
+        }, data);
+        // keys accounts
+        let keys = [
+            { pubkey: pool_acc, isSigner: false, isWritable: true },
+            { pubkey: owner_acc, isSigner: true, isWritable: false },
+            { pubkey: fee_vault_acc, isSigner: false, isWritable: true },
+            { pubkey: fee_receiver_acc, isSigner: false, isWritable: true },
+            { pubkey: pool_pda, isSigner: false, isWritable: false },
             { pubkey: token_program_acc, isSigner: false, isWritable: false },
         ];
         // make instruction

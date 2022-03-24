@@ -32,6 +32,7 @@ pub enum AmmInstruction {
         direction: u8,
     },
     WithdrawalFee {},
+    Terminate {},
 }
 
 impl AmmInstruction {
@@ -65,6 +66,7 @@ impl AmmInstruction {
                     tolerance: u64::from_le_bytes(*data),
                 }
             }
+            9 => Self::Terminate {},
 
             10 => {
                 let data = array_ref![rest, 0, 8 + 1];
@@ -111,6 +113,9 @@ impl AmmInstruction {
             &Self::UpdateTolerance { tolerance } => {
                 buf.push(3);
                 buf.extend_from_slice(&tolerance.to_le_bytes());
+            }
+            &Self::Terminate {} => {
+                buf.push(9);
             }
 
             &Self::Swap { amount, direction } => {
