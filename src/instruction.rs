@@ -12,7 +12,7 @@ use arrayref::{array_ref, array_refs};
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq)]
 
-pub enum SapInstruction {
+pub enum AmmInstruction {
     Initialize {
         nonce: u8,
         fee_1: u64,
@@ -37,7 +37,7 @@ pub enum SapInstruction {
     },
 }
 
-impl SapInstruction {
+impl AmmInstruction {
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
         let (tag, rest) = input
             .split_first()
@@ -97,7 +97,7 @@ impl SapInstruction {
         })
     }
 
-    // pack function to pack a SapInstruction enum into a byte array for test convenience
+    // pack function to pack a AmmInstruction enum into a byte array for test convenience
     pub fn pack(&self) -> Vec<u8> {
         let mut buf = Vec::with_capacity(size_of::<Self>());
         match self {

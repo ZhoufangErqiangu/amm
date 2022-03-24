@@ -1,7 +1,7 @@
 //! Program state processor
 // use solana_program::sysvar::Sysvar;
 use {
-    crate::{error::AmmError, instruction::SapInstruction, state::AmmPool},
+    crate::{error::AmmError, instruction::AmmInstruction, state::AmmPool},
     arrayref::array_ref,
     num_traits::FromPrimitive,
     // pyth_client::{CorpAction, PriceStatus, PriceType},
@@ -25,9 +25,9 @@ pub struct Processor {}
 impl Processor {
     /// Processes [Instruction](enum.Instruction.html).
     pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
-        let instruction = SapInstruction::unpack(input)?;
+        let instruction = AmmInstruction::unpack(input)?;
         match instruction {
-            SapInstruction::Initialize {
+            AmmInstruction::Initialize {
                 nonce,
                 fee_1,
                 fee_2,
@@ -44,19 +44,19 @@ impl Processor {
                     amount_b, tolerance,
                 )
             }
-            SapInstruction::UpdatePool {} => {
+            AmmInstruction::UpdatePool {} => {
                 msg!("Instruction: Update Pool");
                 Self::process_update_pool(program_id, accounts)
             }
-            SapInstruction::UpdateStatus { status } => {
+            AmmInstruction::UpdateStatus { status } => {
                 msg!("Instruction: Update Status");
                 Self::process_update_status(program_id, accounts, status)
             }
-            SapInstruction::UpdateTolerance { tolerance } => {
+            AmmInstruction::UpdateTolerance { tolerance } => {
                 msg!("Instruction: Update Tolerance");
                 Self::process_update_tolerance(program_id, accounts, tolerance)
             }
-            SapInstruction::Swap { amount, direction } => {
+            AmmInstruction::Swap { amount, direction } => {
                 msg!("Instruction: Swap");
                 Self::process_swap(program_id, accounts, amount, direction)
             }
