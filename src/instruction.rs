@@ -15,11 +15,7 @@ use arrayref::{array_ref, array_refs};
 pub enum AmmInstruction {
     Initialize {
         nonce: u8,
-        fee_1: u64,
-        fee_2: u64,
-        fee_3: u64,
-        fee_4: u64,
-        fee_5: u64,
+        fee: u64,
         amount_a: u64,
         amount_b: u64,
         tolerance: u64,
@@ -35,6 +31,7 @@ pub enum AmmInstruction {
         amount: u64,
         direction: u8,
     },
+    WithdrawalFee {},
 }
 
 impl AmmInstruction {
@@ -44,25 +41,12 @@ impl AmmInstruction {
             .ok_or(crate::error::AmmError::InvalidInstruction)?;
         Ok(match tag {
             0 => {
-                let data = array_ref![rest, 0, 1 + 8 * 8];
-                let (
-                    nonce_buf,
-                    fee_1_buf,
-                    fee_2_buf,
-                    fee_3_buf,
-                    fee_4_buf,
-                    fee_5_buf,
-                    amount_a_buf,
-                    amount_b_buf,
-                    tolerance_buf,
-                ) = array_refs![data, 1, 8, 8, 8, 8, 8, 8, 8, 8];
+                let data = array_ref![rest, 0, 1 + 8 * 4];
+                let (nonce_buf, fee_buf, amount_a_buf, amount_b_buf, tolerance_buf) =
+                    array_refs![data, 1, 8, 8, 8, 8];
                 Self::Initialize {
                     nonce: u8::from_le_bytes(*nonce_buf),
-                    fee_1: u64::from_le_bytes(*fee_1_buf),
-                    fee_2: u64::from_le_bytes(*fee_2_buf),
-                    fee_3: u64::from_le_bytes(*fee_3_buf),
-                    fee_4: u64::from_le_bytes(*fee_4_buf),
-                    fee_5: u64::from_le_bytes(*fee_5_buf),
+                    fee: u64::from_le_bytes(*fee_buf),
                     amount_a: u64::from_le_bytes(*amount_a_buf),
                     amount_b: u64::from_le_bytes(*amount_b_buf),
                     tolerance: u64::from_le_bytes(*tolerance_buf),
@@ -93,6 +77,8 @@ impl AmmInstruction {
                 }
             }
 
+            80 => Self::WithdrawalFee {},
+
             _ => return Err(AmmError::InvalidInstruction.into()),
         })
     }
@@ -103,22 +89,14 @@ impl AmmInstruction {
         match self {
             &Self::Initialize {
                 nonce,
-                fee_1,
-                fee_2,
-                fee_3,
-                fee_4,
-                fee_5,
+                fee,
                 amount_a,
                 amount_b,
                 tolerance,
             } => {
                 buf.push(0);
                 buf.extend_from_slice(&nonce.to_le_bytes());
-                buf.extend_from_slice(&fee_1.to_le_bytes());
-                buf.extend_from_slice(&fee_2.to_le_bytes());
-                buf.extend_from_slice(&fee_3.to_le_bytes());
-                buf.extend_from_slice(&fee_4.to_le_bytes());
-                buf.extend_from_slice(&fee_5.to_le_bytes());
+                buf.extend_from_slice(&fee.to_le_bytes());
                 buf.extend_from_slice(&amount_a.to_le_bytes());
                 buf.extend_from_slice(&amount_b.to_le_bytes());
                 buf.extend_from_slice(&tolerance.to_le_bytes());
@@ -139,6 +117,10 @@ impl AmmInstruction {
                 buf.push(10);
                 buf.extend_from_slice(&amount.to_le_bytes());
                 buf.extend_from_slice(&direction.to_le_bytes());
+            }
+
+            &Self::WithdrawalFee {} => {
+                buf.push(80);
             }
         }
         buf

@@ -146,11 +146,7 @@ export async function initPool(connection, wallet, seed, feeParams, amountA, amo
         poolPDA,
     ), AmmInstruction.createInitInstruction(
         nonce,
-        feeParams.rate1 * PercenMul,
-        feeParams.rate2 * PercenMul,
-        feeParams.rate3 * PercenMul,
-        feeParams.rate4 * PercenMul,
-        feeParams.rate5 * PercenMul,
+        feeParams.rate * PercenMul,
         amountA * 10 ** mintAData.decimals,
         amountB * 10 ** mintBData.decimals,
         tolerance,
@@ -161,12 +157,6 @@ export async function initPool(connection, wallet, seed, feeParams, amountA, amo
         vaultAAccount.publicKey,
         vaultBAccount.publicKey,
         feeVaultAccount.publicKey,
-        new PublicKey(feeParams.receiver1),
-        new PublicKey(feeParams.receiver2),
-        new PublicKey(feeParams.receiver3),
-        new PublicKey(feeParams.receiver4),
-        new PublicKey(feeParams.receiver5),
-        new PublicKey(feeParams.mint),
         poolPDA,
         new PublicKey(userTokenAKey),
         new PublicKey(userTokenBKey),
@@ -221,7 +211,7 @@ export async function findPoolByOwner(connection, ownerKey) {
     let config = {
         commitment: 'finalized',
         filters: [
-            { memcmp: { offset: 1 * 2 + 8 * 8, bytes: ownerKey } },
+            { memcmp: { offset: 1 * 2 + 8 * 4, bytes: ownerKey } },
             { dataSize: PoolDataLayout.span },
         ],
     };
@@ -233,8 +223,8 @@ export async function findPoolByMints(connection, mintAKey, mintBKey) {
     let config = {
         commitment: 'finalized',
         filters: [
-            { memcmp: { offset: 1 * 2 + 8 * 8 + 32, bytes: mintAKey } },
-            { memcmp: { offset: 1 * 2 + 8 * 8 + 32 * 2, bytes: mintBKey } },
+            { memcmp: { offset: 1 * 2 + 8 * 4 + 32, bytes: mintAKey } },
+            { memcmp: { offset: 1 * 2 + 8 * 4 + 32 * 2, bytes: mintBKey } },
             { dataSize: PoolDataLayout.span },
         ],
     };
@@ -355,15 +345,6 @@ export async function swap(connection, wallet, poolKey, amount, direction) {
             return res;
         }
     }
-    let userFeeTokenKey;
-    {
-        let res = await getTokenAccountMaxAmount(connection, wallet, poolData.fee_mint);
-        if (res.code == 1) {
-            userFeeTokenKey = res.data.publicKey;
-        } else {
-            return res;
-        }
-    }
     // make transaction
     let tx = new Transaction().add(AmmInstruction.createSwapInstrucion(
         amount * 10 ** mintAData.decimals,
@@ -376,7 +357,6 @@ export async function swap(connection, wallet, poolKey, amount, direction) {
         walletAcc,
         new PublicKey(userTokenAKey),
         new PublicKey(userTokenBKey),
-        new PublicKey(userFeeTokenKey),
         TOKEN_PROGRAM_ID,
         programId,
     ));

@@ -29,19 +29,14 @@ impl Processor {
         match instruction {
             AmmInstruction::Initialize {
                 nonce,
-                fee_1,
-                fee_2,
-                fee_3,
-                fee_4,
-                fee_5,
+                fee,
                 amount_a,
                 amount_b,
                 tolerance,
             } => {
                 msg!("Instruction: Init");
                 Self::process_initialize(
-                    program_id, accounts, nonce, fee_1, fee_2, fee_3, fee_4, fee_5, amount_a,
-                    amount_b, tolerance,
+                    program_id, accounts, nonce, fee, amount_a, amount_b, tolerance,
                 )
             }
             AmmInstruction::UpdatePool {} => {
@@ -60,6 +55,10 @@ impl Processor {
                 msg!("Instruction: Swap");
                 Self::process_swap(program_id, accounts, amount, direction)
             }
+            AmmInstruction::WithdrawalFee {} => {
+                msg!("Instruction: Withdrawal Fee");
+                Self::process_withdrawal_fee(program_id, accounts)
+            }
         }
     }
 
@@ -68,17 +67,13 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         nonce: u8,
-        fee_1: u64,
-        fee_2: u64,
-        fee_3: u64,
-        fee_4: u64,
-        fee_5: u64,
+        fee: u64,
         amount_a: u64,
         amount_b: u64,
         tolerance: u64,
     ) -> ProgramResult {
-        let accounts = array_ref![accounts, 0, 17];
-        let [pool_acc, owner_acc, mint_a_acc, mint_b_acc, vault_a_acc, vault_b_acc, fee_vault_acc, fee_receiver_1_acc, fee_receiver_2_acc, fee_receiver_3_acc, fee_receiver_4_acc, fee_receiver_5_acc, fee_mint_acc, pool_pda, owner_token_a_acc, owner_token_b_acc, token_program_acc] =
+        let accounts = array_ref![accounts, 0, 11];
+        let [pool_acc, owner_acc, mint_a_acc, mint_b_acc, vault_a_acc, vault_b_acc, fee_vault_acc, pool_pda, owner_token_a_acc, owner_token_b_acc, token_program_acc] =
             accounts;
         // use data
         let mut pool = AmmPool::unpack(&pool_acc.data.borrow())?;
@@ -123,11 +118,11 @@ impl Processor {
         }
         // check fee vault
         let fee_vault = Self::unpack_token_account(fee_vault_acc)?;
-        if fee_vault.mint != *fee_mint_acc.key {
+        if fee_vault.mint != *mint_b_acc.key {
             msg!(
                 "fee vault mint not match {} {}",
                 fee_vault.mint,
-                *mint_a_acc.key
+                *mint_b_acc.key
             );
             return Err(AmmError::InvalidMint.into());
         }
@@ -141,7 +136,7 @@ impl Processor {
         }
         // check pda
         if pda != *pool_pda.key {
-            return Err(AmmError::InvalidOwner.into());
+            return Err(AmmError::InvalidPDA.into());
         }
         // transfer asset to vault
         Self::token_transfer(
@@ -164,23 +159,13 @@ impl Processor {
         pool.ka = amount_a;
         pool.kb = amount_b;
         pool.tolerance = tolerance;
-        pool.fee_1 = fee_1;
-        pool.fee_2 = fee_2;
-        pool.fee_3 = fee_3;
-        pool.fee_4 = fee_4;
-        pool.fee_5 = fee_5;
+        pool.fee = fee;
         pool.owner = *owner_acc.key;
         pool.mint_a = *mint_a_acc.key;
         pool.mint_b = *mint_b_acc.key;
         pool.vault_a = *vault_a_acc.key;
         pool.vault_b = *vault_b_acc.key;
         pool.fee_vault = *fee_vault_acc.key;
-        pool.fee_receiver_1 = *fee_receiver_1_acc.key;
-        pool.fee_receiver_2 = *fee_receiver_2_acc.key;
-        pool.fee_receiver_3 = *fee_receiver_3_acc.key;
-        pool.fee_receiver_4 = *fee_receiver_4_acc.key;
-        pool.fee_receiver_5 = *fee_receiver_5_acc.key;
-        pool.fee_mint = *fee_mint_acc.key;
         // pack pool
         AmmPool::pack(pool, &mut pool_acc.data.borrow_mut())?;
         Ok(())
@@ -188,9 +173,8 @@ impl Processor {
 
     /// Processes `Update Pool` instruction.
     fn process_update_pool(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
-        let accounts = array_ref![accounts, 0, 7];
-        let [pool_acc, owner_acc, fee_receiver_1_acc, fee_receiver_2_acc, fee_receiver_3_acc, fee_receiver_4_acc, fee_receiver_5_acc] =
-            accounts;
+        let accounts = array_ref![accounts, 0, 2];
+        let [pool_acc, owner_acc] = accounts;
         // use data
         let mut pool = AmmPool::unpack_unchecked(&pool_acc.data.borrow())?;
         // check
@@ -208,11 +192,7 @@ impl Processor {
             return Err(AmmError::InvalidStatus.into());
         }
         // update pool
-        pool.fee_receiver_1 = *fee_receiver_1_acc.key;
-        pool.fee_receiver_2 = *fee_receiver_2_acc.key;
-        pool.fee_receiver_3 = *fee_receiver_3_acc.key;
-        pool.fee_receiver_4 = *fee_receiver_4_acc.key;
-        pool.fee_receiver_5 = *fee_receiver_5_acc.key;
+        pool.status = 2;
         // pack pool
         AmmPool::pack(pool, &mut pool_acc.data.borrow_mut())?;
         Ok(())
@@ -291,8 +271,8 @@ impl Processor {
         amount: u64,
         direction: u8,
     ) -> ProgramResult {
-        let accounts = array_ref![accounts, 0, 10];
-        let [pool_acc, vault_a_acc, vault_b_acc, _fee_vault, pool_pda, user_wallet_acc, user_token_a_acc, user_token_b_acc, _user_fee_acc, token_program_acc] =
+        let accounts = array_ref![accounts, 0, 9];
+        let [pool_acc, vault_a_acc, vault_b_acc, fee_vault_acc, pool_pda, user_wallet_acc, user_token_a_acc, user_token_b_acc,  token_program_acc] =
             accounts;
         // use data
         let pool = AmmPool::unpack_unchecked(&pool_acc.data.borrow())?;
@@ -387,9 +367,73 @@ impl Processor {
         }
         // check if k is within tolerance
         Self::check_amount_tolerance(pool, direction, amount, amount_transfer, vault_a, vault_b)?;
+        // transfer fee
+        let fee_mount = amount_transfer
+            .checked_mul(pool.fee)
+            .and_then(|v| v.checked_div(PERCENT_MUL))
+            .unwrap();
+        if fee_mount > 0 {
+            // transfer user token to vault
+            Self::token_transfer(
+                token_program_acc.clone(),
+                user_token_b_acc.clone(),
+                fee_vault_acc.clone(),
+                user_wallet_acc.clone(),
+                fee_mount,
+            )?;
+        }
         Ok(())
     }
 
+    /// Processes `Withdrawal Fee` instruction.
+    fn process_withdrawal_fee(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        let accounts = array_ref![accounts, 0, 6];
+        let [pool_acc, owner_acc, fee_vault_acc, fee_receiver_acc, pool_pda, token_program_acc] =
+            accounts;
+        // use data
+        let pool = AmmPool::unpack_unchecked(&pool_acc.data.borrow())?;
+        let pda_seed = &[pool_acc.clone().key.as_ref(), &[pool.nonce]];
+        let pda = solana_program::pubkey::Pubkey::create_program_address(pda_seed, program_id)?;
+        // check
+        if !owner_acc.is_signer {
+            msg!("owner must sign");
+            return Err(AmmError::InvalidSignAccount.into());
+        }
+        Self::check_account_owner(pool_acc, program_id)?;
+        if pool.owner != *owner_acc.key {
+            msg!("owner not match {} {}", pool.owner, *owner_acc.key);
+            return Err(AmmError::InvalidOwner.into());
+        }
+        // check fee vault
+        let fee_vault = Self::unpack_token_account(fee_vault_acc)?;
+        if pool.fee_vault != *fee_vault_acc.key {
+            msg!(
+                "fee vault not match {} {}",
+                pool.fee_vault,
+                *fee_vault_acc.key
+            );
+            return Err(AmmError::InvalidVault.into());
+        }
+        // check pda
+        if pda != *pool_pda.key {
+            return Err(AmmError::InvalidPDA.into());
+        }
+        // transfer fee to receiver
+        if fee_vault.amount > 0 {
+            Self::token_transfer_signed(
+                pool_acc.clone(),
+                pool.nonce,
+                token_program_acc.clone(),
+                fee_vault_acc.clone(),
+                fee_receiver_acc.clone(),
+                pool_pda.clone(),
+                fee_vault.amount,
+            )?;
+        } else {
+            return Err(AmmError::NoFee.into());
+        }
+        Ok(())
+    }
     /// calculate a2b amount
     /// A*B=k
     /// (A+a)*(B-b)=k
@@ -626,4 +670,4 @@ const _USDC_PUBKEY: solana_program::pubkey::Pubkey =
         194, 210, 246, 224, 228, 124, 166, 2, 3, 69, 47, 93, 97,
     ]);
 
-const _PERCENT_MUL: u64 = u64::pow(10, 6);
+const PERCENT_MUL: u64 = u64::pow(10, 6);

@@ -102,28 +102,6 @@ async function initEnv(connection, wallet) {
             return res;
         }
     }
-    // create fee mint
-    {
-        let res = await createMintAccount(connection, wallet);
-        if (res.code == 1) {
-            feeMintKey = res.data;
-            console.log('create fee mint', feeMintKey);
-        } else {
-            console.error('create fee mint error', res);
-            return res;
-        }
-    }
-    // create fee receiver
-    {
-        let res = await createTokenAccount(connection, wallet, feeMintKey);
-        if (res.code == 1) {
-            feeReceiver = res.data;
-            console.log('create user fee receiver ok', feeReceiver);
-        } else {
-            console.error('create user fee receiver error', res);
-            return res;
-        }
-    }
     return { code: 1, msg: 'init env ok' };
 }
 
@@ -155,28 +133,8 @@ async function main() {
                 // create and init pool
                 // 0.01 means 1%
                 let feeParams = {
-                    // Liquidity Providers
-                    rate1: 0.002,
-                    // Mercanti Stakers
-                    rate2: 0.0005,
-                    // Project / DAO
-                    rate3: 0.0015,
-                    // $MARCO Buy-Back & Burn
-                    rate4: 0.0005,
-                    // reserved
-                    rate5: 0,
-                    // Liquidity Providers
-                    receiver1: new PublicKey(feeReceiver),
-                    // Mercanti Stakers
-                    receiver2: new PublicKey(feeReceiver),
-                    // Project / DAO
-                    receiver3: new PublicKey(feeReceiver),
-                    // $MARCO Buy-Back & Burn
-                    receiver4: new PublicKey(feeReceiver),
-                    // reserved
-                    receiver5: new PublicKey(feeReceiver),
-                    // ?must be marco?
-                    mint: new PublicKey(feeMintKey),
+                    rate: 0.0045,
+                    mint: new PublicKey(mintBKey),
                 }
                 let res = await initPool(
                     connection,
