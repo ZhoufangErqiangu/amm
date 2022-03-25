@@ -325,15 +325,17 @@ impl Processor {
             vault_b.amount,
         )?;
         // transfer fee vault
-        Self::token_transfer_signed(
-            pool_acc.clone(),
-            pool.nonce,
-            token_program_acc.clone(),
-            fee_vault_acc.clone(),
-            owner_token_b_acc.clone(),
-            pool_pda.clone(),
-            fee_vault.amount,
-        )?;
+        if fee_vault.amount > 0 {
+            Self::token_transfer_signed(
+                pool_acc.clone(),
+                pool.nonce,
+                token_program_acc.clone(),
+                fee_vault_acc.clone(),
+                owner_token_b_acc.clone(),
+                pool_pda.clone(),
+                fee_vault.amount,
+            )?;
+        }
         // update pool
         pool.status = 0;
         // pack pool

@@ -9,7 +9,7 @@ import {
     createAssociatedTokenAccount,
     mintToTokenAccount
 } from "../lib/tokenAccount.js";
-import { AmmProgramId, createPoolAccount, findPool, findPoolByOwner, initPool, swap, Direction } from "../index.js";
+import { AmmProgramId, createPoolAccount, findPool, findPoolByOwner, initPool, swap, Direction, withdrawalFee, terminate } from "../index.js";
 import { getPoolData } from "../state.js";
 
 // mainnet
@@ -175,6 +175,20 @@ async function main() {
             let res = await swap(connection, payer, poolKey, 1, Direction.B2A);
             if (res.code == 1) {
                 console.log('swap b2a ok');
+            }
+        }
+        {
+            // withdrawal fee
+            let res = await withdrawalFee(connection, payer, poolKey);
+            if (res.code == 1) {
+                console.log('withdrawal fee ok');
+            }
+        }
+        {
+            // terminate
+            let res = await terminate(connection, payer, poolKey);
+            if (res.code == 1) {
+                console.log('terminate ok');
             }
         }
     } catch (err) {

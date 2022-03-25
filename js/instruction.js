@@ -21,10 +21,16 @@ const UpdateToleranceBuffer = BufferLayout.struct([
     BufferLayout.u8('i'),
     BufferLayout.nu64('tolerance'),
 ]);
+const TerminateBuffer = BufferLayout.struct([
+    BufferLayout.u8('i'),
+]);
 const SwapBuffer = BufferLayout.struct([
     BufferLayout.u8('i'),
     BufferLayout.nu64('amount'),
     BufferLayout.u8('direction'),
+]);
+const WithdrawalBuffer = BufferLayout.struct([
+    BufferLayout.u8('i'),
 ]);
 
 // instrucion
@@ -180,23 +186,44 @@ export class AmmInstruction {
     static createTerminateInstruction(
         pool_acc,
         owner_acc,
+        vault_a_acc,
+        vault_b_acc,
+        fee_vault_acc,
+        pool_pda,
+        owner_token_a_acc,
+        owner_token_b_acc,
+        token_program_acc,
         programId,
     ) {
         console.log(
-            'update pool',
+            'terminate',
             'pool_acc', pool_acc.toBase58(),
             'owner_acc', owner_acc.toBase58(),
+            'vault_a_acc', vault_a_acc.toBase58(),
+            'vault_b_acc', vault_b_acc.toBase58(),
+            'fee_vault_acc', fee_vault_acc.toBase58(),
+            'pool_pda', pool_pda.toBase58(),
+            'owner_token_a_acc', owner_token_a_acc.toBase58(),
+            'owner_token_b_acc', owner_token_b_acc.toBase58(),
+            'token_program_acc', token_program_acc.toBase58(),
             'program id', programId.toBase58()
         );
         // data
-        let data = Buffer.alloc(UpdatePoolBuffer.span);
+        let data = Buffer.alloc(TerminateBuffer.span);
         UpdatePoolBuffer.encode({
-            i: 1,
+            i: 9,
         }, data);
         // keys accounts
         let keys = [
             { pubkey: pool_acc, isSigner: false, isWritable: true },
             { pubkey: owner_acc, isSigner: true, isWritable: false },
+            { pubkey: vault_a_acc, isSigner: false, isWritable: true },
+            { pubkey: vault_b_acc, isSigner: false, isWritable: true },
+            { pubkey: fee_vault_acc, isSigner: false, isWritable: true },
+            { pubkey: pool_pda, isSigner: false, isWritable: false },
+            { pubkey: owner_token_a_acc, isSigner: false, isWritable: true },
+            { pubkey: owner_token_b_acc, isSigner: false, isWritable: true },
+            { pubkey: token_program_acc, isSigner: false, isWritable: false },
         ];
         // make instruction
         let instrucion = new TransactionInstruction({ keys, programId, data });
@@ -264,13 +291,13 @@ export class AmmInstruction {
         programId,
     ) {
         console.log(
-            'update pool',
+            'withdrawal fee',
             'pool_acc', pool_acc.toBase58(),
             'owner_acc', owner_acc.toBase58(),
-            'fee_vault_acc,', fee_vault_acc.toBase58(),
-            'fee_receiver_acc,', fee_receiver_acc.toBase58(),
-            'pool_pda,', pool_pda.toBase58(),
-            'token_program_acc,', token_program_acc.toBase58(),
+            'fee_vault_acc', fee_vault_acc.toBase58(),
+            'fee_receiver_acc', fee_receiver_acc.toBase58(),
+            'pool_pda', pool_pda.toBase58(),
+            'token_program_acc', token_program_acc.toBase58(),
             'program id', programId.toBase58()
         );
         // data
