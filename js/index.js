@@ -482,7 +482,7 @@ export async function withdrawalFee(connection, wallet, poolKey) {
     }
 }
 
-export async function getSwapRate(connection, poolKey) {
+export async function calculateSwapAmount(connection, poolKey, amount, direction) {
     // use data
     let poolData;
     {
@@ -515,17 +515,30 @@ export async function getSwapRate(connection, poolKey) {
     let k = pool.ka * pool.kb;
     let A = vaultAData.amount * 10 ** vaultAData.decimals;
     let B = vaultBData.amount * 10 ** vaultBData.decimals;
-    let a = 1;
-    // calculate a2b
-    {
-        let b = Math.round(B - k / (A + a));
-        let rate = b;
+    let a = amount;
+    let b = 0;
+    let kNew = 0;
+    if (direction = Direction.A2B) {
+        b = Math.round(B - k / (A + a));
+        if (b >= B) {
+            return { code: -1, msg: 'b is greater than B', data: b };
+        }
+        kNew = (A + a) * (B - b);
+    } else if (direction = Direction.B2A) {
+        if (a >= A) {
+            return { code: -2, msg: 'a is greater than A', data: a };
+        }
+        b = Math.round(k / (A - a) - B);
+        kNew = (A - a) * (B + b);
+    } else {
+        return { code: -3, msg: 'direction unknow', data: direction };
     }
-    // calculate b2a
-    {
-        let b = Math.round(k / (A - a) - B);
-        let rate = 1 / b;
+    // check tolerance
+    let diff = Math.abs(k - kNew);
+    if (diff > pool.tolerance) {
+        return { code: -4, msg: 'out of tolerance', data: diff };
     }
+    return { code: 1, msg: 'calculate swap amount ok', data: b };
 }
 
 export { getPoolData };

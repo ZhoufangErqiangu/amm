@@ -507,6 +507,7 @@ impl Processor {
         }
         Ok(())
     }
+    
     /// calculate a2b amount
     /// A*B=k
     /// (A+a)*(B-b)=k
