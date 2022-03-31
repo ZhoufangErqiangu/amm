@@ -8,7 +8,7 @@
     },
     "keywords": [],
     "author": "alex",
-    "license": "MIT",
+    "license": "Apache",
     "type": "module",
     "scripts": {
         "test": "node js/test/index.js",
