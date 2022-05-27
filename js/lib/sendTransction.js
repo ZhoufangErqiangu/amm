@@ -71,7 +71,7 @@ export async function getSignatureStatus(connection, signatrue) {
     if (temp.value) {
       // let nowDate = new Date();
       // let passTime = nowDate.getTime() - startDate.getTime();
-      // console.log('transaction', temp.value.confirmationStatus, passTime, 'ms');
+      // console.log("transaction", temp.value.confirmationStatus, passTime, "ms");
       if (temp.value.confirmationStatus == "finalized") {
         console.log("transaction finalized", signatrue);
         flag = false;

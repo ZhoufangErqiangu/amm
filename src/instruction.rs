@@ -3,15 +3,31 @@
 
 use crate::error::AmmError;
 // use solana_program::{program_error::ProgramError, pubkey::Pubkey};
-use solana_program::program_error::ProgramError;
-use std::mem::size_of;
-
 use arrayref::{array_ref, array_refs};
+use solana_program::program_error::ProgramError;
+use std::{fmt, mem::size_of};
+
+/// swap direction
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Direction {
+    A2B,
+    B2A,
+}
+
+impl fmt::Display for Direction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let status: String = match self {
+            Direction::A2B => "A to B".to_string(),
+            Direction::B2A => "B to A".to_string(),
+        };
+        write!(f, "{}", status)
+    }
+}
 
 /// Instructions supported by the token program.
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq)]
-
 pub enum AmmInstruction {
     Initialize {
         nonce: u8,
@@ -20,7 +36,6 @@ pub enum AmmInstruction {
         amount_b: u64,
         tolerance: u64,
     },
-    UpdatePool {},
     UpdateStatus {
         status: u8,
     },
@@ -29,7 +44,7 @@ pub enum AmmInstruction {
     },
     Swap {
         amount: u64,
-        direction: u8,
+        direction: Direction,
     },
     WithdrawalFee {},
     Terminate {},
@@ -53,7 +68,6 @@ impl AmmInstruction {
                     tolerance: u64::from_le_bytes(*tolerance_buf),
                 }
             }
-            1 => Self::UpdatePool {},
             2 => {
                 let data = array_ref![rest, 0, 1];
                 Self::UpdateStatus {
@@ -71,11 +85,16 @@ impl AmmInstruction {
             10 => {
                 let data = array_ref![rest, 0, 8 + 1];
                 let (amount_buf, direction_buf) = array_refs![data, 8, 1];
+                // 1 is a2b, 2 is b2a
+                let direction = match u8::from_le_bytes(*direction_buf) {
+                    1 => Direction::A2B,
+                    2 => Direction::B2A,
+                    _ => return Err(AmmError::InvalidDirection.into()),
+                };
 
                 Self::Swap {
                     amount: u64::from_le_bytes(*amount_buf),
-                    // 1 is a2b, 2 is b2a
-                    direction: u8::from_le_bytes(*direction_buf),
+                    direction: direction,
                 }
             }
 
@@ -103,9 +122,6 @@ impl AmmInstruction {
                 buf.extend_from_slice(&amount_b.to_le_bytes());
                 buf.extend_from_slice(&tolerance.to_le_bytes());
             }
-            &Self::UpdatePool {} => {
-                buf.push(1);
-            }
             &Self::UpdateStatus { status } => {
                 buf.push(2);
                 buf.extend_from_slice(&status.to_le_bytes());
@@ -121,7 +137,11 @@ impl AmmInstruction {
             &Self::Swap { amount, direction } => {
                 buf.push(10);
                 buf.extend_from_slice(&amount.to_le_bytes());
-                buf.extend_from_slice(&direction.to_le_bytes());
+                // 1 is a2b, 2 is b2a
+                match direction {
+                    Direction::A2B => buf.push(1),
+                    Direction::B2A => buf.push(2),
+                }
             }
 
             &Self::WithdrawalFee {} => {

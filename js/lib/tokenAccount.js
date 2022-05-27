@@ -54,40 +54,36 @@ export async function createTokenAccount(connection, wallet, mintKey) {
 export async function createAssociatedTokenAccount(
   connection,
   wallet,
-  mintKey
+  mintKey,
+  programId
 ) {
   // use account
   let walletAcc = wallet.publicKey;
   // create account
-  let newAccount = new Keypair();
   let mintAcc = new PublicKey(mintKey);
-  let lamports = await connection.getMinimumBalanceForRentExemption(
-    AccountLayout.span
-  );
   // make transction
+  let acc = await Token.getAssociatedTokenAddress(
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+    programId,
+    mintAcc,
+    walletAcc
+  );
   let tx = new Transaction().add(
-    SystemProgram.createAccount({
-      fromPubkey: walletAcc,
-      newAccountPubkey: newAccount.publicKey,
-      lamports,
-      space: AccountLayout.span,
-      programId: ASSOCIATED_TOKEN_PROGRAM_ID,
-    }),
     Token.createAssociatedTokenAccountInstruction(
       ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
+      programId,
       mintAcc,
-      newAccount.publicKey,
+      acc,
       walletAcc,
       walletAcc
     )
   );
-  let res = await signAndSendTransaction(connection, wallet, [newAccount], tx);
+  let res = await signAndSendTransaction(connection, wallet, null, tx);
   if (res.code == 1) {
     return {
       code: 1,
       msg: "token account create ok",
-      data: newAccount.publicKey.toBase58(),
+      data: acc.toBase58(),
       signature: res.data,
     };
   } else {
@@ -276,7 +272,79 @@ export async function mintToTokenAccount(
   );
   let res = await signAndSendTransaction(connection, wallet, null, tx);
   if (res.code == 1) {
-    return { code: 1, msg: "mint to ok", signature: res.data };
+    return { code: 1, msg: "mint to ok", data: amount, signature: res.data };
+  } else {
+    return res;
+  }
+}
+
+export async function initMintAndTokenAccount(
+  connection,
+  wallet,
+  decimals = 9,
+  amount = 1000
+) {
+  // use account
+  let walletAcc = wallet.publicKey;
+  let mintAccount = new Keypair();
+  let tokenAccount = new Keypair();
+  let lamportsM = await connection.getMinimumBalanceForRentExemption(
+    MintLayout.span
+  );
+  let lamportsT = await connection.getMinimumBalanceForRentExemption(
+    AccountLayout.span
+  );
+  // make transaction
+  let tx = new Transaction().add(
+    SystemProgram.createAccount({
+      fromPubkey: walletAcc,
+      newAccountPubkey: mintAccount.publicKey,
+      lamports: lamportsM,
+      space: MintLayout.span,
+      programId: TOKEN_PROGRAM_ID,
+    }),
+    Token.createInitMintInstruction(
+      TOKEN_PROGRAM_ID,
+      mintAccount.publicKey,
+      decimals,
+      walletAcc,
+      null
+    ),
+    SystemProgram.createAccount({
+      fromPubkey: walletAcc,
+      newAccountPubkey: tokenAccount.publicKey,
+      lamports: lamportsT,
+      space: AccountLayout.span,
+      programId: TOKEN_PROGRAM_ID,
+    }),
+    Token.createInitAccountInstruction(
+      TOKEN_PROGRAM_ID,
+      mintAccount.publicKey,
+      tokenAccount.publicKey,
+      walletAcc
+    ),
+    Token.createMintToInstruction(
+      TOKEN_PROGRAM_ID,
+      mintAccount.publicKey,
+      tokenAccount.publicKey,
+      walletAcc,
+      [],
+      amount * 10 ** decimals
+    )
+  );
+  let res = await signAndSendTransaction(
+    connection,
+    wallet,
+    [mintAccount, tokenAccount],
+    tx
+  );
+  if (res.code == 1) {
+    return {
+      code: 1,
+      msg: "init mint and create token account ok",
+      data: mintAccount.publicKey.toBase58(),
+      signature: res.data,
+    };
   } else {
     return res;
   }

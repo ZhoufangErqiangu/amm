@@ -5,16 +5,40 @@ use solana_program::{
     program_pack::{IsInitialized, Pack, Sealed},
     pubkey::Pubkey,
 };
+use std::fmt;
+
+/// pool status
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum PoolStatus {
+    NotInit,
+    Nomal,
+    Lock,
+}
+
+impl Default for PoolStatus {
+    fn default() -> Self {
+        Self::NotInit
+    }
+}
+
+impl fmt::Display for PoolStatus {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let status: String = match self {
+            PoolStatus::NotInit => "Not Init".to_string(),
+            PoolStatus::Nomal => "Nomal".to_string(),
+            PoolStatus::Lock => "Lock".to_string(),
+        };
+        write!(f, "{}", status)
+    }
+}
 
 /// amm pool
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct AmmPool {
     // pool status
-    // 0 is not init
-    // 1 is nomal
-    // 2 is lock
-    pub status: u8,
+    pub status: PoolStatus,
     // Nonce used in program address.
     pub nonce: u8,
     // use for calculate
@@ -38,8 +62,7 @@ pub struct AmmPool {
 impl Sealed for AmmPool {}
 impl IsInitialized for AmmPool {
     fn is_initialized(&self) -> bool {
-        true
-        // self.owner_pubkey != NULL_PUBKEY
+        self.status == PoolStatus::NotInit
     }
 }
 impl Pack for AmmPool {
@@ -62,8 +85,16 @@ impl Pack for AmmPool {
             fee_vault_buf,
         ) = array_refs![src, 1, 1, 8, 8, 8, 8, 32, 32, 32, 32, 32, 32];
 
+        let status_temp = u8::from_le_bytes(*status_buf);
+        let status: PoolStatus = match status_temp {
+            0 => PoolStatus::NotInit,
+            1 => PoolStatus::Nomal,
+            2 => PoolStatus::Lock,
+            _ => PoolStatus::default(),
+        };
+
         Ok(AmmPool {
-            status: u8::from_le_bytes(*status_buf),
+            status: status,
             nonce: u8::from_le_bytes(*nonce_buf),
             ka: u64::from_le_bytes(*ka_buf),
             kb: u64::from_le_bytes(*kb_buf),
@@ -95,7 +126,12 @@ impl Pack for AmmPool {
             vault_b_buf,
             fee_vault_buf,
         ) = mut_array_refs![dst, 1, 1, 8, 8, 8, 8, 32, 32, 32, 32, 32, 32];
-        *status_buf = self.status.to_le_bytes();
+        let status: u8 = match self.status {
+            PoolStatus::NotInit => 0,
+            PoolStatus::Nomal => 1,
+            PoolStatus::Lock => 2,
+        };
+        *status_buf = status.to_le_bytes();
         *nonce_buf = self.nonce.to_le_bytes();
         *ka_buf = self.ka.to_le_bytes();
         *kb_buf = self.kb.to_le_bytes();

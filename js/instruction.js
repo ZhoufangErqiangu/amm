@@ -116,33 +116,6 @@ export class AmmInstruction {
     let instrucion = new TransactionInstruction({ keys, programId, data });
     return instrucion;
   }
-  static createUpdatePoolInstruction(pool_acc, owner_acc, programId) {
-    console.log(
-      "update pool",
-      "pool_acc",
-      pool_acc.toBase58(),
-      "owner_acc",
-      owner_acc.toBase58(),
-      "program id",
-      programId.toBase58()
-    );
-    // data
-    let data = Buffer.alloc(UpdatePoolBuffer.span);
-    UpdatePoolBuffer.encode(
-      {
-        i: 1,
-      },
-      data
-    );
-    // keys accounts
-    let keys = [
-      { pubkey: pool_acc, isSigner: false, isWritable: true },
-      { pubkey: owner_acc, isSigner: true, isWritable: false },
-    ];
-    // make instruction
-    let instrucion = new TransactionInstruction({ keys, programId, data });
-    return instrucion;
-  }
   static createUpdateStatusInstrucion(status, pool_acc, owner_acc, programId) {
     console.log(
       "update status",

@@ -1,68 +1,30 @@
+import { AccountLayout, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
   Keypair,
   PublicKey,
-  Transaction,
   SystemProgram,
+  Transaction,
 } from "@solana/web3.js";
-import { AccountLayout, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { AmmInstruction } from "./instruction.js";
-import { PoolDataLayout, getPoolData } from "./state.js";
 import { signAndSendTransaction } from "./lib/sendTransction.js";
 import {
   getMintData,
   getTokenAccountData,
   getTokenAccountMaxAmount,
 } from "./lib/tokenAccount.js";
+import { getPoolData, PoolDataLayout } from "./state.js";
 
 // program
 export const AmmProgramId = "aAmLZ9yP1adeZyRC9qMskX9e1Ma2gR4ktpyrDCWPkdm";
 const programId = new PublicKey(AmmProgramId);
 
 const PercenMul = 10 ** 6;
+const SeedPre = "AMM";
 export const Direction = { A2B: 1, B2A: 2 };
 
-export async function createPoolAccount(connection, wallet, seed) {
-  // use account
-  let walletAcc = wallet.publicKey;
-  // create
-  let poolAcc = await PublicKey.createWithSeed(walletAcc, seed, programId);
-  // check if exist
-  let poolData = await connection.getAccountInfo(poolAcc);
-  if (poolData) {
-    return { code: 2, msg: "pool exist", data: poolAcc.toBase58() };
-  }
-  // make transaction
-  let lamports = await connection.getMinimumBalanceForRentExemption(
-    PoolDataLayout.span
-  );
-  let tx = new Transaction().add(
-    SystemProgram.createAccountWithSeed({
-      fromPubkey: walletAcc,
-      basePubkey: walletAcc,
-      newAccountPubkey: poolAcc,
-      seed,
-      lamports,
-      space: PoolDataLayout.span,
-      programId,
-    })
-  );
-  let res = await signAndSendTransaction(connection, wallet, null, tx);
-  if (res.code == 1) {
-    return {
-      code: 1,
-      msg: "pool create ok",
-      data: poolAcc.toBase58(),
-      signature: res.data,
-    };
-  } else {
-    return res;
-  }
-}
-
-export async function initPool(
+export async function createPool(
   connection,
   wallet,
-  seed,
   feeParams,
   amountA,
   amountB,
@@ -73,6 +35,7 @@ export async function initPool(
   // use account
   let walletAcc = wallet.publicKey;
   // create
+  let seed = SeedPre + new Date().getTime().toString();
   let poolAcc = await PublicKey.createWithSeed(walletAcc, seed, programId);
   // check if exist
   let poolData = await connection.getAccountInfo(poolAcc);
@@ -273,36 +236,6 @@ export async function findPoolByMints(connection, mintAKey, mintBKey) {
   };
   let list = await connection.getParsedProgramAccounts(programId, config);
   return list;
-}
-
-export async function updatePool(connection, wallet, poolKey, feeParams) {
-  // use account
-  let walletAcc = wallet.publicKey;
-  let poolAcc = new PublicKey(poolKey);
-  // make transaction
-  let tx = new Transaction().add(
-    AmmInstruction.createUpdatePoolInstruction(
-      poolAcc,
-      walletAcc,
-      new PublicKey(feeParams.receiver1),
-      new PublicKey(feeParams.receiver2),
-      new PublicKey(feeParams.receiver3),
-      new PublicKey(feeParams.receiver4),
-      new PublicKey(feeParams.receiver5),
-      programId
-    )
-  );
-  let res = await signAndSendTransaction(connection, wallet, null, tx);
-  if (res.code == 1) {
-    return {
-      code: 1,
-      msg: "update pool ok",
-      data: poolAcc.toBase58(),
-      signature: res.data,
-    };
-  } else {
-    return res;
-  }
 }
 
 export async function updateStatus(connection, wallet, poolKey, status) {
@@ -531,7 +464,9 @@ export async function superSwap(
   poolKey1,
   poolKey2,
   amount
-) {}
+) {
+  
+}
 
 export async function withdrawalFee(connection, wallet, poolKey) {
   // use account

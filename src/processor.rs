@@ -1,10 +1,13 @@
 //! Program state processor
 // use solana_program::sysvar::Sysvar;
 use {
-    crate::{error::AmmError, instruction::AmmInstruction, state::AmmPool},
+    crate::{
+        error::AmmError,
+        instruction::{AmmInstruction, Direction},
+        state::{AmmPool, PoolStatus},
+    },
     arrayref::array_ref,
     num_traits::FromPrimitive,
-    // pyth_client::{CorpAction, PriceStatus, PriceType},
     solana_program::{
         account_info::AccountInfo,
         // clock::Clock,
@@ -13,6 +16,7 @@ use {
         msg,
         program::{invoke, invoke_signed},
         program_error::{PrintProgramError, ProgramError},
+        program_memory::sol_memset,
         program_pack::Pack,
         pubkey::Pubkey,
         // sysvar::Sysvar,
@@ -38,10 +42,6 @@ impl Processor {
                 Self::process_initialize(
                     program_id, accounts, nonce, fee, amount_a, amount_b, tolerance,
                 )
-            }
-            AmmInstruction::UpdatePool {} => {
-                msg!("Instruction: Update Pool");
-                Self::process_update_pool(program_id, accounts)
             }
             AmmInstruction::UpdateStatus { status } => {
                 msg!("Instruction: Update Status");
@@ -80,7 +80,7 @@ impl Processor {
         let [pool_acc, owner_acc, mint_a_acc, mint_b_acc, vault_a_acc, vault_b_acc, fee_vault_acc, pool_pda, owner_token_a_acc, owner_token_b_acc, token_program_acc] =
             accounts;
         // use data
-        let mut pool = AmmPool::unpack(&pool_acc.data.borrow())?;
+        let mut pool = AmmPool::unpack_unchecked(&pool_acc.data.borrow())?;
         let pda_seed = &[pool_acc.key.as_ref(), &[nonce]];
         let pda = solana_program::pubkey::Pubkey::create_program_address(pda_seed, program_id)?;
         // check
@@ -89,7 +89,7 @@ impl Processor {
             return Err(AmmError::InvalidSignAccount.into());
         }
         Self::check_account_owner(pool_acc, program_id)?;
-        if pool.status != 0 {
+        if pool.status != PoolStatus::NotInit {
             return Err(AmmError::PoolExist.into());
         }
         // check vault a
@@ -158,7 +158,7 @@ impl Processor {
             amount_b,
         )?;
         // init pool
-        pool.status = 1;
+        pool.status = PoolStatus::Nomal;
         pool.nonce = nonce;
         pool.ka = amount_a;
         pool.kb = amount_b;
@@ -170,33 +170,6 @@ impl Processor {
         pool.vault_a = *vault_a_acc.key;
         pool.vault_b = *vault_b_acc.key;
         pool.fee_vault = *fee_vault_acc.key;
-        // pack pool
-        AmmPool::pack(pool, &mut pool_acc.data.borrow_mut())?;
-        Ok(())
-    }
-
-    /// Processes `Update Pool` instruction.
-    fn process_update_pool(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
-        let accounts = array_ref![accounts, 0, 2];
-        let [pool_acc, owner_acc] = accounts;
-        // use data
-        let mut pool = AmmPool::unpack_unchecked(&pool_acc.data.borrow())?;
-        // check
-        if !owner_acc.is_signer {
-            msg!("owner must sign");
-            return Err(AmmError::InvalidSignAccount.into());
-        }
-        Self::check_account_owner(pool_acc, program_id)?;
-        if pool.owner != *owner_acc.key {
-            msg!("owner not match {} {}", pool.owner, *owner_acc.key);
-            return Err(AmmError::InvalidOwner.into());
-        }
-        if pool.status == 0 {
-            msg!("pool status:{}", pool.status);
-            return Err(AmmError::InvalidStatus.into());
-        }
-        // update pool
-        pool.status = 2;
         // pack pool
         AmmPool::pack(pool, &mut pool_acc.data.borrow_mut())?;
         Ok(())
@@ -222,16 +195,18 @@ impl Processor {
             msg!("owner not match {} {}", pool.owner, *owner_acc.key);
             return Err(AmmError::InvalidOwner.into());
         }
-        if pool.status == 0 {
+        if pool.status == PoolStatus::NotInit {
             msg!("pool status:{}", pool.status);
             return Err(AmmError::InvalidStatus.into());
         }
-        if status < 1 || status > 2 {
-            msg!("status:{}", status);
-            return Err(AmmError::InvalidStatus.into());
-        }
         // update pool
-        pool.status = status;
+        pool.status = match status {
+            1 => PoolStatus::Nomal,
+            2 => PoolStatus::Lock,
+            _ => {
+                return Err(AmmError::InvalidStatus.into());
+            }
+        };
         // pack pool
         AmmPool::pack(pool, &mut pool_acc.data.borrow_mut())?;
         Ok(())
@@ -257,7 +232,7 @@ impl Processor {
             msg!("owner not match {} {}", pool.owner, *owner_acc.key);
             return Err(AmmError::InvalidOwner.into());
         }
-        if pool.status == 0 {
+        if pool.status == PoolStatus::NotInit {
             msg!("pool status:{}", pool.status);
             return Err(AmmError::InvalidStatus.into());
         }
@@ -274,7 +249,7 @@ impl Processor {
         let [pool_acc, owner_acc, vault_a_acc, vault_b_acc, fee_vault_acc, pool_pda, owner_token_a_acc, owner_token_b_acc, token_program_acc] =
             accounts;
         // use data
-        let mut pool = AmmPool::unpack_unchecked(&pool_acc.data.borrow())?;
+        let pool = AmmPool::unpack_unchecked(&pool_acc.data.borrow())?;
         let vault_a = Self::unpack_token_account(vault_a_acc)?;
         let vault_b = Self::unpack_token_account(vault_b_acc)?;
         let fee_vault = Self::unpack_token_account(fee_vault_acc)?;
@@ -288,7 +263,7 @@ impl Processor {
             msg!("owner not match {} {}", pool.owner, *owner_acc.key);
             return Err(AmmError::InvalidOwner.into());
         }
-        if pool.status == 0 {
+        if pool.status == PoolStatus::NotInit {
             msg!("pool status:{}", pool.status);
             return Err(AmmError::InvalidStatus.into());
         }
@@ -314,6 +289,14 @@ impl Processor {
             pool_pda.clone(),
             vault_a.amount,
         )?;
+        Self::token_close_signed(
+            pool_acc.clone(),
+            pool.nonce,
+            token_program_acc.clone(),
+            vault_a_acc.clone(),
+            owner_acc.clone(),
+            pool_pda.clone(),
+        )?;
         // transfer vault b
         Self::token_transfer_signed(
             pool_acc.clone(),
@@ -323,6 +306,14 @@ impl Processor {
             owner_token_b_acc.clone(),
             pool_pda.clone(),
             vault_b.amount,
+        )?;
+        Self::token_close_signed(
+            pool_acc.clone(),
+            pool.nonce,
+            token_program_acc.clone(),
+            vault_b_acc.clone(),
+            owner_acc.clone(),
+            pool_pda.clone(),
         )?;
         // transfer fee vault
         if fee_vault.amount > 0 {
@@ -336,10 +327,22 @@ impl Processor {
                 fee_vault.amount,
             )?;
         }
-        // update pool
-        pool.status = 0;
-        // pack pool
-        AmmPool::pack(pool, &mut pool_acc.data.borrow_mut())?;
+        Self::token_close_signed(
+            pool_acc.clone(),
+            pool.nonce,
+            token_program_acc.clone(),
+            fee_vault_acc.clone(),
+            owner_acc.clone(),
+            pool_pda.clone(),
+        )?;
+        // close account
+        {
+            let user_lamports = owner_acc.lamports();
+            **owner_acc.lamports.borrow_mut() =
+                user_lamports.checked_add(pool_acc.lamports()).unwrap();
+            **pool_acc.lamports.borrow_mut() = 0;
+            sol_memset(*pool_acc.data.borrow_mut(), 0, AmmPool::LEN);
+        }
         Ok(())
     }
 
@@ -348,7 +351,7 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         amount: u64,
-        direction: u8,
+        direction: Direction,
     ) -> ProgramResult {
         let accounts = array_ref![accounts, 0, 9];
         let [pool_acc, vault_a_acc, vault_b_acc, fee_vault_acc, pool_pda, user_wallet_acc, user_token_a_acc, user_token_b_acc, token_program_acc] =
@@ -371,7 +374,7 @@ impl Processor {
             msg!("vault b not match {} {}", pool.vault_b, *vault_b_acc.key);
             return Err(AmmError::InvalidVault.into());
         }
-        if pool.status != 1 {
+        if pool.status != PoolStatus::Nomal {
             msg!("pool status:{}", pool.status);
             return Err(AmmError::PoolLock.into());
         }
@@ -395,10 +398,15 @@ impl Processor {
             return Err(AmmError::InvalidMint.into());
         }
         // match direction
-        // 1 is a2b, 2 is b2a
         let amount_transfer: u64;
+        msg!(
+            "amount:{}, vault a:{}, vault b:{}",
+            amount,
+            vault_a.amount,
+            vault_b.amount
+        );
         match direction {
-            1 => {
+            Direction::A2B => {
                 amount_transfer = Self::calculate_amount_a2b(pool, amount, vault_a, vault_b)?;
                 // transfer user token to vault
                 Self::token_transfer(
@@ -419,7 +427,7 @@ impl Processor {
                     amount_transfer,
                 )?;
             }
-            2 => {
+            Direction::B2A => {
                 amount_transfer = Self::calculate_amount_b2a(pool, amount, vault_a, vault_b)?;
                 // transfer user token to vault
                 Self::token_transfer(
@@ -439,9 +447,6 @@ impl Processor {
                     pool_pda.clone(),
                     amount,
                 )?;
-            }
-            _ => {
-                return Err(AmmError::InvalidDirection.into());
             }
         }
         // check if k is within tolerance
@@ -507,7 +512,6 @@ impl Processor {
         }
         Ok(())
     }
-    
     /// calculate a2b amount
     /// A*B=k
     /// (A+a)*(B-b)=k
@@ -518,11 +522,18 @@ impl Processor {
         vault_a: spl_token::state::Account,
         vault_b: spl_token::state::Account,
     ) -> Result<u64, AmmError> {
-        let k: u64 = pool.ka.checked_mul(pool.kb).unwrap();
-        let changed_a = vault_a.amount.checked_add(amount_a).unwrap();
-        let temp: u64 = k.checked_div(changed_a).unwrap();
-        let amount_b: u64 = vault_b.amount.checked_sub(temp).unwrap();
-        if amount_b >= vault_b.amount {
+        // calcaulate k
+        let ka = pool.ka as u128;
+        let kb = pool.kb as u128;
+        let k: u128 = ka.checked_mul(kb).unwrap();
+        // calculate amount a
+        let amount = amount_a as u128;
+        let vault_a_amount = vault_a.amount as u128;
+        let vault_b_amount = vault_b.amount as u128;
+        let changed_a = vault_a_amount.checked_add(amount).unwrap();
+        let temp: u128 = k.checked_div(changed_a).unwrap();
+        let amount_b: u128 = vault_b_amount.checked_sub(temp).unwrap();
+        if amount_b >= vault_b_amount {
             msg!(
                 "amount b too big, vault:{}, amount:{}",
                 vault_b.amount,
@@ -530,7 +541,11 @@ impl Processor {
             );
             return Err(AmmError::CalculationError);
         }
-        Ok(amount_b)
+        if amount_b > u64::MAX as u128 {
+            msg!("amount b too big:{}", amount_b);
+            return Err(AmmError::CalculationError);
+        }
+        Ok(amount_b as u64)
     }
 
     /// calculate b2a amount
@@ -543,8 +558,15 @@ impl Processor {
         vault_a: spl_token::state::Account,
         vault_b: spl_token::state::Account,
     ) -> Result<u64, AmmError> {
-        let k: u64 = pool.ka.checked_mul(pool.kb).unwrap();
-        let changed_a = vault_a.amount.checked_sub(amount_a).unwrap();
+        // calculatek
+        let ka = pool.ka as u128;
+        let kb = pool.kb as u128;
+        let k: u128 = ka.checked_mul(kb).unwrap();
+        // calculate amount
+        let amount = amount_a as u128;
+        let vault_a_amount = vault_a.amount as u128;
+        let vault_b_amount = vault_b.amount as u128;
+        let changed_a: u128 = vault_a_amount.checked_sub(amount).unwrap();
         if changed_a == 0 {
             msg!(
                 "amount a too big, vault:{}, amount:{}",
@@ -553,38 +575,46 @@ impl Processor {
             );
             return Err(AmmError::CalculationError);
         }
-        let temp: u64 = k.checked_div(changed_a).unwrap();
-        let amount_b: u64 = temp.checked_sub(vault_b.amount).unwrap();
-        Ok(amount_b)
+        let temp: u128 = k.checked_div(changed_a).unwrap();
+        let amount_b: u128 = temp.checked_sub(vault_b_amount).unwrap();
+        if amount_b > u64::MAX as u128 {
+            msg!("amount b too big:{}", amount_b);
+            return Err(AmmError::CalculationError);
+        }
+        Ok(amount_b as u64)
     }
 
     fn check_amount_tolerance(
         pool: AmmPool,
-        direction: u8,
+        direction: Direction,
         amount: u64,
         amount_transfer: u64,
         vault_a: spl_token::state::Account,
         vault_b: spl_token::state::Account,
     ) -> Result<(), AmmError> {
-        let k_origin: u64 = pool.ka.checked_mul(pool.kb).unwrap();
-        let ka_new: u64;
-        let kb_new: u64;
-        // 1 is a2b, 2 is b2a
+        // calculate k
+        let ka = pool.ka as u128;
+        let kb = pool.kb as u128;
+        let k_origin: u128 = ka.checked_mul(kb).unwrap();
+        let ka_new: u128;
+        let kb_new: u128;
+        // amount
+        let vault_a_amount = vault_a.amount as u128;
+        let vault_b_amount = vault_b.amount as u128;
+        let amount_big = amount as u128;
+        let amount_transfer_big = amount_transfer as u128;
         match direction {
-            1 => {
-                ka_new = vault_a.amount.checked_add(amount).unwrap();
-                kb_new = vault_b.amount.checked_sub(amount_transfer).unwrap();
+            Direction::A2B => {
+                ka_new = vault_a_amount.checked_add(amount_big).unwrap();
+                kb_new = vault_b_amount.checked_sub(amount_transfer_big).unwrap();
             }
-            2 => {
-                ka_new = vault_a.amount.checked_sub(amount).unwrap();
-                kb_new = vault_b.amount.checked_add(amount_transfer).unwrap();
-            }
-            _ => {
-                return Err(AmmError::InvalidDirection.into());
+            Direction::B2A => {
+                ka_new = vault_a_amount.checked_sub(amount_big).unwrap();
+                kb_new = vault_b_amount.checked_add(amount_transfer_big).unwrap();
             }
         }
-        let k_new: u64 = ka_new.checked_mul(kb_new).unwrap();
-        let tolerance: u64;
+        let k_new: u128 = ka_new.checked_mul(kb_new).unwrap();
+        let tolerance: u128;
         if k_origin > k_new {
             tolerance = k_origin - k_new;
         } else if k_new > k_origin {
@@ -592,9 +622,9 @@ impl Processor {
         } else {
             tolerance = 0;
         }
-        if tolerance > pool.tolerance {
+        if tolerance > pool.tolerance as u128 {
             msg!(
-                "tolerance too big, pool:{}, calculation:{}",
+                "tolerance too big, pool tolerance:{}, calculated tolerance:{}",
                 pool.tolerance,
                 tolerance
             );
@@ -695,6 +725,31 @@ impl Processor {
         invoke_signed(
             &ix,
             &[source_acc, destination_acc, pda, token_program_acc],
+            signers,
+        )
+    }
+
+    /// Issue a spl_token `Close` instruction by pda.
+    fn token_close_signed<'a>(
+        pool_acc: AccountInfo<'a>,
+        nonce: u8,
+        token_program_acc: AccountInfo<'a>,
+        account_acc: AccountInfo<'a>,
+        destination_acc: AccountInfo<'a>,
+        pda: AccountInfo<'a>,
+    ) -> Result<(), ProgramError> {
+        let seeds = &[pool_acc.key.as_ref(), &[nonce]];
+        let signers = &[&seeds[..]];
+        let ix = spl_token::instruction::close_account(
+            token_program_acc.key,
+            account_acc.key,
+            destination_acc.key,
+            pda.key,
+            &[&pda.key],
+        )?;
+        invoke_signed(
+            &ix,
+            &[account_acc, destination_acc, pda, token_program_acc],
             signers,
         )
     }
