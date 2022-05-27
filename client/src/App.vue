@@ -15,11 +15,11 @@
 </template>
 
 <script>
-import AppHeader from "./layout/Header.vue";
-import AppFooter from "./layout/Footer.vue";
+import AppHeader from './layout/Header.vue';
+import AppFooter from './layout/Footer.vue';
 
 export default {
-  name: "App",
+  name: 'App',
   components: {
     AppHeader,
     AppFooter,
@@ -31,7 +31,7 @@ export default {
 * {
   margin: 0;
   padding: 0;
-  font-family: "Microsoft YaHei";
+  font-family: 'Microsoft YaHei';
 }
 html {
   background-color: #f9f9f9;
@@ -50,6 +50,12 @@ body {
   }
   .mt25 {
     margin-top: 25px;
+  }
+  .none {
+    font-size: 24px;
+    font-weight: 500;
+    text-align: center;
+    line-height: 60px;
   }
 }
 </style>

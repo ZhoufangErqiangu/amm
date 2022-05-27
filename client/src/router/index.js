@@ -2,7 +2,7 @@ import Vue from "vue";
 import VueRouter from "vue-router";
 import AppIndex from "../views/Index.vue";
 
-const defaultTitle = "Chating on solana";
+const defaultTitle = "AMM";
 
 Vue.use(VueRouter);
 

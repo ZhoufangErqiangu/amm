@@ -1,12 +1,10 @@
 <template>
-  <div class="foot-box">
-    Just for fun
-  </div>
+  <div class="foot-box">Just for fun</div>
 </template>
 
 <script>
 export default {
-  name: "Foot",
+  name: 'Foot',
 };
 </script>
 
