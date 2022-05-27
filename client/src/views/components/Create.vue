@@ -34,6 +34,7 @@
 </template>
 
 <script>
+import store from "../../store";
 import { Connection } from "@solana/web3.js";
 import { rpcUrl } from "../../assets/js";
 import { createPool } from "../../assets/js/amm";
@@ -46,14 +47,14 @@ export default {
     return {
       option: {
         feeParams: {
-          mint: "",
+          mint: "9shyAizyTSUYnQPu2hDuphv9eW17V9xJProXAghEAbv4",
           rate: 0.01,
         },
         amountA: 100,
         amountB: 100,
         tolerance: 1000,
-        mintA: "",
-        mintB: "",
+        mintA: "GEEJqrshj3r4CbSN7fJk6haCPBTLWczaw3UGepB8hVE2",
+        mintB: "9shyAizyTSUYnQPu2hDuphv9eW17V9xJProXAghEAbv4",
       },
       rules: {
         mint: [{ require: true, message: "Must input Mint", trigger: "blur" }],
@@ -72,10 +73,19 @@ export default {
         ],
       },
       loading: false,
+      validateOK: false,
     };
   },
   methods: {
     async onCreate() {
+      if (!this.isConnected) {
+        this.$message({ message: "Must connect wallet", type: "warning" });
+        return;
+      }
+      if (!this.validateOK) {
+        this.$message({ message: "Must input option", type: "warning" });
+        return;
+      }
       this.loading = true;
       try {
         let res = await createPool(
@@ -101,7 +111,13 @@ export default {
       this.loading = false;
     },
     onValidate(value, pass, err) {
-      console.log(value, pass, err);
+      this.validateOK = pass;
+      if (err) console.warn("form validate fail", err);
+    },
+  },
+  computed: {
+    isConnected() {
+      return store.state.connected;
     },
   },
 };

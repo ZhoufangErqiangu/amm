@@ -10,10 +10,10 @@
       <div>
         <el-form :rules="rules" :model="option" label-width="150px" @validate="onValidate">
           <el-form-item prop="mint" label="Mint A Address">
-            <el-input v-model="mintA" placeholder="Mint Address" clearable></el-input>
+            <el-input v-model="option.mintA" placeholder="Mint Address" clearable></el-input>
           </el-form-item>
           <el-form-item prop="mint" label="Mint B Address">
-            <el-input v-model="mintB" placeholder="Mint Address" clearable></el-input>
+            <el-input v-model="option.mintB" placeholder="Mint Address" clearable></el-input>
           </el-form-item>
         </el-form>
       </div>
@@ -43,6 +43,7 @@ export default {
   data() {
     return {
       loading: false,
+      validateOK: false,
       list: [],
       option: {
         mintA: "",
@@ -57,19 +58,19 @@ export default {
     async onFind() {
       this.loading = true;
       try {
-        if (this.mintA == "" || !this.mintA) {
+        if (this.mintA == "" || !this.option.mintA) {
           this.message({ message: "Must input mint address", type: "warning" });
         }
-        if (this.mintB == "" || !this.mintB) {
+        if (this.mintB == "" || !this.option.mintB) {
           this.message({ message: "Must input mint address", type: "warning" });
         }
         let list = [];
         {
-          let res = await findPoolByMints(connection, this.mintA, this.mintB);
+          let res = await findPoolByMints(connection, this.option.mintA, this.option.mintB);
           list = list.concat(res);
         }
         {
-          let res = await findPoolByMints(connection, this.mintB, this.mintA);
+          let res = await findPoolByMints(connection, this.option.mintB, this.option.mintA);
           list = list.concat(res);
         }
         this.$message({ message: "Find ok", type: "success" });
@@ -79,6 +80,10 @@ export default {
         this.$message({ message: "Find error", type: "error" });
       }
       this.loading = false;
+    },
+    onValidate(value, pass, err) {
+      this.validateOK = pass;
+      if (err) console.warn("form validate fail", err);
     },
   },
   computed: {},

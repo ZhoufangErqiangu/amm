@@ -5,12 +5,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   Token,
 } from "@solana/spl-token";
-import {
-  Keypair,
-  PublicKey,
-  SystemProgram,
-  Transaction,
-} from "@solana/web3.js";
+import { Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import { signAndSendTransaction } from "./sendTransction.js";
 
 export async function createTokenAccount(connection, wallet, mintKey) {
@@ -19,9 +14,7 @@ export async function createTokenAccount(connection, wallet, mintKey) {
   // create account
   let newAccount = new Keypair();
   let mintAcc = new PublicKey(mintKey);
-  let lamports = await connection.getMinimumBalanceForRentExemption(
-    AccountLayout.span
-  );
+  let lamports = await connection.getMinimumBalanceForRentExemption(AccountLayout.span);
   // make transction
   let tx = new Transaction().add(
     SystemProgram.createAccount({
@@ -31,12 +24,7 @@ export async function createTokenAccount(connection, wallet, mintKey) {
       space: AccountLayout.span,
       programId: TOKEN_PROGRAM_ID,
     }),
-    Token.createInitAccountInstruction(
-      TOKEN_PROGRAM_ID,
-      mintAcc,
-      newAccount.publicKey,
-      walletAcc
-    )
+    Token.createInitAccountInstruction(TOKEN_PROGRAM_ID, mintAcc, newAccount.publicKey, walletAcc)
   );
   let res = await signAndSendTransaction(connection, wallet, [newAccount], tx);
   if (res.code == 1) {
@@ -51,12 +39,7 @@ export async function createTokenAccount(connection, wallet, mintKey) {
   }
 }
 
-export async function createAssociatedTokenAccount(
-  connection,
-  wallet,
-  mintKey,
-  programId
-) {
+export async function createAssociatedTokenAccount(connection, wallet, mintKey, programId) {
   // use account
   let walletAcc = wallet.publicKey;
   // create account
@@ -124,10 +107,7 @@ export async function getTokenAccountMaxAmount(connection, wallet, mintKey) {
   });
   if (res.value.length == 1) {
     // user has only one token aacount
-    let res1 = await getTokenAccountData(
-      connection,
-      res.value[0].pubkey.toBase58()
-    );
+    let res1 = await getTokenAccountData(connection, res.value[0].pubkey.toBase58());
     if (res1.code == 1) {
       return {
         code: 1,
@@ -183,9 +163,7 @@ export async function getTokenAccountMaxAmount(connection, wallet, mintKey) {
 export async function createMintAccount(connection, wallet, decimals = 9) {
   // use account
   let walletAcc = wallet.publicKey;
-  let lamports = await connection.getMinimumBalanceForRentExemption(
-    MintLayout.span
-  );
+  let lamports = await connection.getMinimumBalanceForRentExemption(MintLayout.span);
   let mintAccount = new Keypair();
   let tx = new Transaction().add(
     SystemProgram.createAccount({
@@ -240,12 +218,7 @@ export async function getMintData(connection, mintKey) {
   }
 }
 
-export async function mintToTokenAccount(
-  connection,
-  wallet,
-  userTokenKey,
-  amount
-) {
+export async function mintToTokenAccount(connection, wallet, userTokenKey, amount) {
   // use account
   let walletAcc = wallet.publicKey;
   let userTokenAcc = new PublicKey(userTokenKey);
@@ -278,22 +251,13 @@ export async function mintToTokenAccount(
   }
 }
 
-export async function initMintAndTokenAccount(
-  connection,
-  wallet,
-  decimals = 9,
-  amount = 1000
-) {
+export async function initMintAndTokenAccount(connection, wallet, decimals = 9, amount = 1000) {
   // use account
   let walletAcc = wallet.publicKey;
   let mintAccount = new Keypair();
   let tokenAccount = new Keypair();
-  let lamportsM = await connection.getMinimumBalanceForRentExemption(
-    MintLayout.span
-  );
-  let lamportsT = await connection.getMinimumBalanceForRentExemption(
-    AccountLayout.span
-  );
+  let lamportsM = await connection.getMinimumBalanceForRentExemption(MintLayout.span);
+  let lamportsT = await connection.getMinimumBalanceForRentExemption(AccountLayout.span);
   // make transaction
   let tx = new Transaction().add(
     SystemProgram.createAccount({
@@ -332,12 +296,7 @@ export async function initMintAndTokenAccount(
       amount * 10 ** decimals
     )
   );
-  let res = await signAndSendTransaction(
-    connection,
-    wallet,
-    [mintAccount, tokenAccount],
-    tx
-  );
+  let res = await signAndSendTransaction(connection, wallet, [mintAccount, tokenAccount], tx);
   if (res.code == 1) {
     return {
       code: 1,

@@ -59,8 +59,24 @@ async function initEnv(connection, wallet) {
   return { code: 1, msg: "init env ok" };
 }
 
+export async function init() {
+  try {
+    let payer = await getPayer();
+    // create mint user token account
+    let res = await initEnv(connection, payer);
+    if (res.code == 1) {
+      console.log("init env ok");
+    } else {
+      console.error(res);
+      return res;
+    }
+  } catch (err) {
+    console.error("init error", err);
+  }
+}
+
 // test
-async function main() {
+export async function main() {
   try {
     let payer = await getPayer();
     {
@@ -163,5 +179,3 @@ async function main() {
     console.error(err);
   }
 }
-
-main();

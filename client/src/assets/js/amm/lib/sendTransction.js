@@ -23,6 +23,7 @@ export async function signAndSendTransaction(connection, wallet, partialSignerLi
       }
     }
   } catch (error) {
+    console.error(error);
     return { code: -1, msg: "sign canceled", error };
   }
   // send transaction

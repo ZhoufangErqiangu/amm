@@ -1,9 +1,4 @@
-export async function signAndSendTransaction(
-  connection,
-  wallet,
-  partialSignerList,
-  transaction
-) {
+export async function signAndSendTransaction(connection, wallet, partialSignerList, transaction) {
   // use account
   let walletAcc = wallet.publicKey;
   // make transaction

@@ -125,7 +125,7 @@ export async function createPool(
     }),
     Token.createInitAccountInstruction(
       TOKEN_PROGRAM_ID,
-      feeParams.mint,
+      new PublicKey(feeParams.mint),
       feeVaultAccount.publicKey,
       poolPDA
     ),

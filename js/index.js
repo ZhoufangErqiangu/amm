@@ -141,7 +141,7 @@ export async function createPool(
     }),
     Token.createInitAccountInstruction(
       TOKEN_PROGRAM_ID,
-      feeParams.mint,
+      new PublicKey(feeParams.mint),
       feeVaultAccount.publicKey,
       poolPDA
     ),
@@ -464,9 +464,7 @@ export async function superSwap(
   poolKey1,
   poolKey2,
   amount
-) {
-  
-}
+) {}
 
 export async function withdrawalFee(connection, wallet, poolKey) {
   // use account
