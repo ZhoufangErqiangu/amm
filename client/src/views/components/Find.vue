@@ -32,7 +32,7 @@
 import PoolUnit from "./PoolUnit.vue";
 import { Connection } from "@solana/web3.js";
 import { rpcUrl } from "../../assets/js";
-import { findPoolByMints } from "../../assets/js/amm";
+import { findPoolByMints, getPoolsData } from "../../assets/js/amm";
 const connection = new Connection(rpcUrl);
 
 export default {
@@ -74,7 +74,7 @@ export default {
           list = list.concat(res);
         }
         this.$message({ message: "Find ok", type: "success" });
-        this.list = list;
+        this.list = getPoolsData(list);
       } catch (err) {
         console.error("find error", err);
         this.$message({ message: "Find error", type: "error" });

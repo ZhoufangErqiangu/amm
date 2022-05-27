@@ -3,7 +3,7 @@ import { Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js"
 import { AmmInstruction } from "./instruction.js";
 import { signAndSendTransaction } from "./lib/sendTransction.js";
 import { getMintData, getTokenAccountData, getTokenAccountMaxAmount } from "./lib/tokenAccount.js";
-import { getPoolData, PoolDataLayout } from "./state.js";
+import { getPoolData, getPoolDataRaw, PoolDataLayout } from "./state.js";
 
 // program
 export const AmmProgramId = "aAmLZ9yP1adeZyRC9qMskX9e1Ma2gR4ktpyrDCWPkdm";
@@ -220,6 +220,12 @@ export async function findPoolByMints(connection, mintAKey, mintBKey) {
   };
   let list = await connection.getParsedProgramAccounts(programId, config);
   return list;
+}
+
+export function getPoolsData(poolList) {
+  return poolList.map((e) => {
+    return getPoolDataRaw(e);
+  });
 }
 
 export async function updateStatus(connection, wallet, poolKey, status) {

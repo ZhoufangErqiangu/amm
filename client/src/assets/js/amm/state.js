@@ -35,6 +35,13 @@ export async function getPoolData(connection, poolKey) {
   }
 }
 
+export function getPoolDataRaw(info) {
+  let temp = PoolDataLayout.decode(info.account.data);
+  temp["poolKey"] = info.pubkey.toBase58();
+  temp.fee /= PercenMul;
+  return handleKey(temp);
+}
+
 function handleKey(data) {
   for (let key in data) {
     if (data[key].length == 32) {
