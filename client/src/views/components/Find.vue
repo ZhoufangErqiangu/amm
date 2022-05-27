@@ -6,11 +6,16 @@
         <el-button class="ml15" size="mini" type="primary" :loading="loading" @click="onFind">
           Find
         </el-button>
-        <el-button class="ml15" size="mini" type="primary" @click="onCreate"> Create </el-button>
       </div>
       <div>
-        <el-input v-model="mintA" placeholder="Mint Address" clearable></el-input>
-        <el-input v-model="mintB" placeholder="Mint Address" clearable></el-input>
+        <el-form :rules="rules" :model="option" label-width="150px" @validate="onValidate">
+          <el-form-item prop="mint" label="Mint A Address">
+            <el-input v-model="mintA" placeholder="Mint Address" clearable></el-input>
+          </el-form-item>
+          <el-form-item prop="mint" label="Mint B Address">
+            <el-input v-model="mintB" placeholder="Mint Address" clearable></el-input>
+          </el-form-item>
+        </el-form>
       </div>
     </el-card>
     <el-card class="mt25">
@@ -24,14 +29,14 @@
 </template>
 
 <script>
-import PoolUnit from './PoolUnit.vue';
-import { Connection } from '@solana/web3.js';
-import { rpcUrl } from '../../assets/js';
-import { findPoolByMints } from '../../assets/js/amm';
+import PoolUnit from "./PoolUnit.vue";
+import { Connection } from "@solana/web3.js";
+import { rpcUrl } from "../../assets/js";
+import { findPoolByMints } from "../../assets/js/amm";
 const connection = new Connection(rpcUrl);
 
 export default {
-  name: 'Find',
+  name: "Find",
   components: {
     PoolUnit,
   },
@@ -39,19 +44,24 @@ export default {
     return {
       loading: false,
       list: [],
-      mintA: '',
-      mintB: '',
+      option: {
+        mintA: "",
+        mintB: "",
+      },
+      rules: {
+        mint: [{ require: true, message: "Must input Mint", trigger: "blur" }],
+      },
     };
   },
   methods: {
     async onFind() {
       this.loading = true;
       try {
-        if (this.mintA == '' || !this.mintA) {
-          this.message({ message: 'Must input mint address', type: 'warning' });
+        if (this.mintA == "" || !this.mintA) {
+          this.message({ message: "Must input mint address", type: "warning" });
         }
-        if (this.mintB == '' || !this.mintB) {
-          this.message({ message: 'Must input mint address', type: 'warning' });
+        if (this.mintB == "" || !this.mintB) {
+          this.message({ message: "Must input mint address", type: "warning" });
         }
         let list = [];
         {
@@ -62,11 +72,11 @@ export default {
           let res = await findPoolByMints(connection, this.mintB, this.mintA);
           list = list.concat(res);
         }
-        this.$message({ message: 'Find ok', type: 'success' });
+        this.$message({ message: "Find ok", type: "success" });
         this.list = list;
       } catch (err) {
-        console.error('find error', err);
-        this.$message({ message: 'Find error', type: 'error' });
+        console.error("find error", err);
+        this.$message({ message: "Find error", type: "error" });
       }
       this.loading = false;
     },
