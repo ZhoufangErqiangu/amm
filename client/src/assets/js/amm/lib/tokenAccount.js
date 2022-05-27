@@ -4,9 +4,9 @@ import {
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
   Token,
-} from '@solana/spl-token';
-import { Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
-import { signAndSendTransaction } from './sendTransction.js';
+} from "@solana/spl-token";
+import { Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
+import { signAndSendTransaction } from "./sendTransction.js";
 
 export async function createTokenAccount(connection, wallet, mintKey) {
   // use account
@@ -30,7 +30,7 @@ export async function createTokenAccount(connection, wallet, mintKey) {
   if (res.code == 1) {
     return {
       code: 1,
-      msg: 'token account create ok',
+      msg: "token account create ok",
       data: newAccount.publicKey.toBase58(),
       signature: res.data,
     };
@@ -39,37 +39,34 @@ export async function createTokenAccount(connection, wallet, mintKey) {
   }
 }
 
-export async function createAssociatedTokenAccount(connection, wallet, mintKey) {
+export async function createAssociatedTokenAccount(connection, wallet, mintKey, programId) {
   // use account
   let walletAcc = wallet.publicKey;
   // create account
-  let newAccount = new Keypair();
   let mintAcc = new PublicKey(mintKey);
-  let lamports = await connection.getMinimumBalanceForRentExemption(AccountLayout.span);
   // make transction
+  let acc = await Token.getAssociatedTokenAddress(
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+    programId,
+    mintAcc,
+    walletAcc
+  );
   let tx = new Transaction().add(
-    SystemProgram.createAccount({
-      fromPubkey: walletAcc,
-      newAccountPubkey: newAccount.publicKey,
-      lamports,
-      space: AccountLayout.span,
-      programId: ASSOCIATED_TOKEN_PROGRAM_ID,
-    }),
     Token.createAssociatedTokenAccountInstruction(
       ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
+      programId,
       mintAcc,
-      newAccount.publicKey,
+      acc,
       walletAcc,
       walletAcc
     )
   );
-  let res = await signAndSendTransaction(connection, wallet, [newAccount], tx);
+  let res = await signAndSendTransaction(connection, wallet, null, tx);
   if (res.code == 1) {
     return {
       code: 1,
-      msg: 'token account create ok',
-      data: newAccount.publicKey.toBase58(),
+      msg: "token account create ok",
+      data: acc.toBase58(),
       signature: res.data,
     };
   } else {
@@ -86,7 +83,7 @@ export async function getTokenAccountData(connection, tokenKey) {
     let decimals = info.tokenAmount.decimals;
     return {
       code: 1,
-      msg: 'get token account data ok',
+      msg: "get token account data ok",
       data: {
         publicKey: tokenKey,
         owner: info.owner,
@@ -96,7 +93,7 @@ export async function getTokenAccountData(connection, tokenKey) {
       },
     };
   } else {
-    return { code: 0, msg: 'account is null', data: null };
+    return { code: 0, msg: "account is null", data: null };
   }
 }
 
@@ -114,7 +111,7 @@ export async function getTokenAccountMaxAmount(connection, wallet, mintKey) {
     if (res1.code == 1) {
       return {
         code: 1,
-        msg: 'user has only one token account',
+        msg: "user has only one token account",
         data: res1.data,
       };
     } else {
@@ -122,7 +119,7 @@ export async function getTokenAccountMaxAmount(connection, wallet, mintKey) {
     }
   } else if (res.value.length == 0) {
     // user has no token account
-    return { code: -1, msg: 'user has no token account', data: null };
+    return { code: -1, msg: "user has no token account", data: null };
   } else {
     // get token account amount
     let accounts = [];
@@ -143,20 +140,20 @@ export async function getTokenAccountMaxAmount(connection, wallet, mintKey) {
       if (maxIndex != -1) {
         return {
           code: 1,
-          msg: 'find token account ok',
+          msg: "find token account ok",
           data: accounts[maxIndex],
         };
       } else {
         return {
           code: 0,
-          msg: 'can not find amount max token account',
+          msg: "can not find amount max token account",
           data: null,
         };
       }
     } else {
       return {
         code: 0,
-        msg: 'can not find amount max token account',
+        msg: "can not find amount max token account",
         data: null,
       };
     }
@@ -188,7 +185,7 @@ export async function createMintAccount(connection, wallet, decimals = 9) {
   if (res.code == 1) {
     return {
       code: 1,
-      msg: 'token account create ok',
+      msg: "token account create ok",
       data: mintAccount.publicKey.toBase58(),
       signature: res.data,
     };
@@ -207,7 +204,7 @@ export async function getMintData(connection, mintKey) {
     let decimals = info.decimals;
     return {
       code: 1,
-      msg: 'get mint data ok',
+      msg: "get mint data ok",
       data: {
         publicKey: mintKey,
         mintAuthority: info.mintAuthority,
@@ -217,7 +214,7 @@ export async function getMintData(connection, mintKey) {
       },
     };
   } else {
-    return { code: 0, msg: 'account is null', data: null };
+    return { code: 0, msg: "account is null", data: null };
   }
 }
 
@@ -248,7 +245,65 @@ export async function mintToTokenAccount(connection, wallet, userTokenKey, amoun
   );
   let res = await signAndSendTransaction(connection, wallet, null, tx);
   if (res.code == 1) {
-    return { code: 1, msg: 'mint to ok', signature: res.data };
+    return { code: 1, msg: "mint to ok", data: amount, signature: res.data };
+  } else {
+    return res;
+  }
+}
+
+export async function initMintAndTokenAccount(connection, wallet, decimals = 9, amount = 1000) {
+  // use account
+  let walletAcc = wallet.publicKey;
+  let mintAccount = new Keypair();
+  let tokenAccount = new Keypair();
+  let lamportsM = await connection.getMinimumBalanceForRentExemption(MintLayout.span);
+  let lamportsT = await connection.getMinimumBalanceForRentExemption(AccountLayout.span);
+  // make transaction
+  let tx = new Transaction().add(
+    SystemProgram.createAccount({
+      fromPubkey: walletAcc,
+      newAccountPubkey: mintAccount.publicKey,
+      lamports: lamportsM,
+      space: MintLayout.span,
+      programId: TOKEN_PROGRAM_ID,
+    }),
+    Token.createInitMintInstruction(
+      TOKEN_PROGRAM_ID,
+      mintAccount.publicKey,
+      decimals,
+      walletAcc,
+      null
+    ),
+    SystemProgram.createAccount({
+      fromPubkey: walletAcc,
+      newAccountPubkey: tokenAccount.publicKey,
+      lamports: lamportsT,
+      space: AccountLayout.span,
+      programId: TOKEN_PROGRAM_ID,
+    }),
+    Token.createInitAccountInstruction(
+      TOKEN_PROGRAM_ID,
+      mintAccount.publicKey,
+      tokenAccount.publicKey,
+      walletAcc
+    ),
+    Token.createMintToInstruction(
+      TOKEN_PROGRAM_ID,
+      mintAccount.publicKey,
+      tokenAccount.publicKey,
+      walletAcc,
+      [],
+      amount * 10 ** decimals
+    )
+  );
+  let res = await signAndSendTransaction(connection, wallet, [mintAccount, tokenAccount], tx);
+  if (res.code == 1) {
+    return {
+      code: 1,
+      msg: "init mint and create token account ok",
+      data: mintAccount.publicKey.toBase58(),
+      signature: res.data,
+    };
   } else {
     return res;
   }

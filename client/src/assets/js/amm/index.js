@@ -1,57 +1,21 @@
-import { AccountLayout, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
-import { AmmInstruction } from './instruction.js';
-import { signAndSendTransaction } from './lib/sendTransction.js';
-import { getMintData, getTokenAccountData, getTokenAccountMaxAmount } from './lib/tokenAccount.js';
-import { getPoolData, PoolDataLayout } from './state.js';
+import { AccountLayout, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
+import { AmmInstruction } from "./instruction.js";
+import { signAndSendTransaction } from "./lib/sendTransction.js";
+import { getMintData, getTokenAccountData, getTokenAccountMaxAmount } from "./lib/tokenAccount.js";
+import { getPoolData, PoolDataLayout } from "./state.js";
 
 // program
-export const AmmProgramId = 'aAmLZ9yP1adeZyRC9qMskX9e1Ma2gR4ktpyrDCWPkdm';
+export const AmmProgramId = "aAmLZ9yP1adeZyRC9qMskX9e1Ma2gR4ktpyrDCWPkdm";
 const programId = new PublicKey(AmmProgramId);
 
 const PercenMul = 10 ** 6;
+const SeedPre = "AMM";
 export const Direction = { A2B: 1, B2A: 2 };
 
-export async function createPoolAccount(connection, wallet, seed) {
-  // use account
-  let walletAcc = wallet.publicKey;
-  // create
-  let poolAcc = await PublicKey.createWithSeed(walletAcc, seed, programId);
-  // check if exist
-  let poolData = await connection.getAccountInfo(poolAcc);
-  if (poolData) {
-    return { code: 2, msg: 'pool exist', data: poolAcc.toBase58() };
-  }
-  // make transaction
-  let lamports = await connection.getMinimumBalanceForRentExemption(PoolDataLayout.span);
-  let tx = new Transaction().add(
-    SystemProgram.createAccountWithSeed({
-      fromPubkey: walletAcc,
-      basePubkey: walletAcc,
-      newAccountPubkey: poolAcc,
-      seed,
-      lamports,
-      space: PoolDataLayout.span,
-      programId,
-    })
-  );
-  let res = await signAndSendTransaction(connection, wallet, null, tx);
-  if (res.code == 1) {
-    return {
-      code: 1,
-      msg: 'pool create ok',
-      data: poolAcc.toBase58(),
-      signature: res.data,
-    };
-  } else {
-    return res;
-  }
-}
-
-export async function initPool(
+export async function createPool(
   connection,
   wallet,
-  seed,
   feeParams,
   amountA,
   amountB,
@@ -62,11 +26,12 @@ export async function initPool(
   // use account
   let walletAcc = wallet.publicKey;
   // create
+  let seed = SeedPre + new Date().getTime().toString();
   let poolAcc = await PublicKey.createWithSeed(walletAcc, seed, programId);
   // check if exist
   let poolData = await connection.getAccountInfo(poolAcc);
   if (poolData) {
-    return { code: -2, msg: 'pool exist', data: poolAcc.toBase58() };
+    return { code: -2, msg: "pool exist", data: poolAcc.toBase58() };
   }
   let [poolPDA, nonce] = await PublicKey.findProgramAddress([poolAcc.toBuffer()], programId);
   let mintAAcc = new PublicKey(mintAKey);
@@ -193,7 +158,7 @@ export async function initPool(
   if (res.code == 1) {
     return {
       code: 1,
-      msg: 'init pool ok',
+      msg: "init pool ok",
       data: poolAcc.toBase58(),
       signature: res.data,
     };
@@ -220,12 +185,12 @@ export async function getPoolPDA(connection, poolKey) {
     [poolAcc.toBuffer(), Buffer.from([poolData.nonce])],
     programId
   );
-  return { code: 1, msg: 'get pda ok', data: poolPDA };
+  return { code: 1, msg: "get pda ok", data: poolPDA };
 }
 
 export async function findPool(connection) {
   let config = {
-    commitment: 'finalized',
+    commitment: "finalized",
     filters: [{ dataSize: PoolDataLayout.span }],
   };
   let list = await connection.getParsedProgramAccounts(programId, config);
@@ -234,7 +199,7 @@ export async function findPool(connection) {
 
 export async function findPoolByOwner(connection, ownerKey) {
   let config = {
-    commitment: 'finalized',
+    commitment: "finalized",
     filters: [
       { memcmp: { offset: 1 * 2 + 8 * 4, bytes: ownerKey } },
       { dataSize: PoolDataLayout.span },
@@ -246,7 +211,7 @@ export async function findPoolByOwner(connection, ownerKey) {
 
 export async function findPoolByMints(connection, mintAKey, mintBKey) {
   let config = {
-    commitment: 'finalized',
+    commitment: "finalized",
     filters: [
       { memcmp: { offset: 1 * 2 + 8 * 4 + 32, bytes: mintAKey } },
       { memcmp: { offset: 1 * 2 + 8 * 4 + 32 * 2, bytes: mintBKey } },
@@ -255,36 +220,6 @@ export async function findPoolByMints(connection, mintAKey, mintBKey) {
   };
   let list = await connection.getParsedProgramAccounts(programId, config);
   return list;
-}
-
-export async function updatePool(connection, wallet, poolKey, feeParams) {
-  // use account
-  let walletAcc = wallet.publicKey;
-  let poolAcc = new PublicKey(poolKey);
-  // make transaction
-  let tx = new Transaction().add(
-    AmmInstruction.createUpdatePoolInstruction(
-      poolAcc,
-      walletAcc,
-      new PublicKey(feeParams.receiver1),
-      new PublicKey(feeParams.receiver2),
-      new PublicKey(feeParams.receiver3),
-      new PublicKey(feeParams.receiver4),
-      new PublicKey(feeParams.receiver5),
-      programId
-    )
-  );
-  let res = await signAndSendTransaction(connection, wallet, null, tx);
-  if (res.code == 1) {
-    return {
-      code: 1,
-      msg: 'update pool ok',
-      data: poolAcc.toBase58(),
-      signature: res.data,
-    };
-  } else {
-    return res;
-  }
 }
 
 export async function updateStatus(connection, wallet, poolKey, status) {
@@ -299,7 +234,7 @@ export async function updateStatus(connection, wallet, poolKey, status) {
   if (res.code == 1) {
     return {
       code: 1,
-      msg: 'update status ok',
+      msg: "update status ok",
       data: poolAcc.toBase58(),
       signature: res.data,
     };
@@ -320,7 +255,7 @@ export async function updateTolerance(connection, wallet, poolKey, tolerance) {
   if (res.code == 1) {
     return {
       code: 1,
-      msg: 'update tolerance ok',
+      msg: "update tolerance ok",
       data: poolAcc.toBase58(),
       signature: res.data,
     };
@@ -390,7 +325,7 @@ export async function terminate(connection, wallet, poolKey) {
   if (res.code == 1) {
     return {
       code: 1,
-      msg: 'update tolerance ok',
+      msg: "update tolerance ok",
       data: poolAcc.toBase58(),
       signature: res.data,
     };
@@ -472,7 +407,7 @@ export async function swap(connection, wallet, poolKey, amount, direction) {
   if (res.code == 1) {
     return {
       code: 1,
-      msg: 'pool create ok',
+      msg: "pool create ok",
       data: poolAcc.toBase58(),
       signature: res.data,
     };
@@ -532,7 +467,7 @@ export async function withdrawalFee(connection, wallet, poolKey) {
   if (res.code == 1) {
     return {
       code: 1,
-      msg: 'update status ok',
+      msg: "update status ok",
       data: poolAcc.toBase58(),
       signature: res.data,
     };
@@ -580,24 +515,24 @@ export async function calculateSwapAmount(connection, poolKey, amount, direction
   if ((direction = Direction.A2B)) {
     b = Math.round(B - k / (A + a));
     if (b >= B) {
-      return { code: -1, msg: 'b is greater than B', data: b };
+      return { code: -1, msg: "b is greater than B", data: b };
     }
     kNew = (A + a) * (B - b);
   } else if ((direction = Direction.B2A)) {
     if (a >= A) {
-      return { code: -2, msg: 'a is greater than A', data: a };
+      return { code: -2, msg: "a is greater than A", data: a };
     }
     b = Math.round(k / (A - a) - B);
     kNew = (A - a) * (B + b);
   } else {
-    return { code: -3, msg: 'direction unknow', data: direction };
+    return { code: -3, msg: "direction unknow", data: direction };
   }
   // check tolerance
   let diff = Math.abs(k - kNew);
   if (diff > pool.tolerance) {
-    return { code: -4, msg: 'out of tolerance', data: diff };
+    return { code: -4, msg: "out of tolerance", data: diff };
   }
-  return { code: 1, msg: 'calculate swap amount ok', data: b };
+  return { code: 1, msg: "calculate swap amount ok", data: b };
 }
 
 export { getPoolData };

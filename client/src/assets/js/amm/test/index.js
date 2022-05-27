@@ -1,100 +1,62 @@
-import { Connection, PublicKey } from '@solana/web3.js';
-import { Direction, findPoolByOwner, initPool, swap, terminate, withdrawalFee } from '../index.js';
-import { readKeypairFromFile } from '../lib/readKeypairFromFile.js';
-import { createMintAccount, createTokenAccount, mintToTokenAccount } from '../lib/tokenAccount.js';
-import { getPoolData } from '../state.js';
+import { Connection, PublicKey } from "@solana/web3.js";
+import {
+  createPool,
+  Direction,
+  findPoolByOwner,
+  swap,
+  terminate,
+  withdrawalFee,
+} from "../index.js";
+import { readKeypairFromFile } from "../lib/readKeypairFromFile.js";
+import { getMintData, initMintAndTokenAccount } from "../lib/tokenAccount.js";
+import { getPoolData } from "../state.js";
 
 // mainnet
 // const rpcUrl = 'https://solana-api.projectserum.com/';
 // devnet
 // const rpcUrl = 'https://api.devnet.solana.com';
 // local
-const rpcUrl = 'http://localhost:8899/';
+const rpcUrl = "http://localhost:8899/";
 
 // comm
-const connection = new Connection(rpcUrl, 'finalized');
-const idPath = '/home/alex/.config/solana/id.json';
-const seed = 'mpAmmTest' + '0322';
+const connection = new Connection(rpcUrl, "finalized");
+const idPath = "/home/alex/.config/solana/id.json";
+const seed = "mpAmmTest" + "0322";
 
 // key
-let mintAKey = '';
-let mintBKey = '';
-let feeMintKey = '';
-let poolKey = '';
-let feeReceiver = '';
+let mintAKey = "";
+let mintBKey = "";
+let feeMintKey = "";
+let poolKey = "";
+let feeReceiver = "";
 
 async function getPayer() {
   let keypair = await readKeypairFromFile(idPath);
-  console.log('read payer', keypair.publicKey.toBase58());
+  console.log("read payer", keypair.publicKey.toBase58());
   return keypair;
 }
 
 async function initEnv(connection, wallet) {
   // create mint
   {
-    // mint a is nft, its decimal is zero.
-    let res = await createMintAccount(connection, wallet, 0);
+    let res = await initMintAndTokenAccount(connection, wallet, 9, 1000);
     if (res.code == 1) {
       mintAKey = res.data;
-      console.log('create mint a', mintAKey);
+      console.log("mint a", mintAKey);
     } else {
-      console.error('create mint a error', res);
       return res;
     }
   }
   {
-    let res = await createMintAccount(connection, wallet);
+    let res = await initMintAndTokenAccount(connection, wallet, 9, 1000);
     if (res.code == 1) {
       mintBKey = res.data;
-      console.log('create mint b', mintBKey);
+      console.log("mint b", mintBKey);
     } else {
-      console.error('create mint b error', res);
       return res;
     }
   }
-  // create user token account
-  let userTokenAKey;
-  {
-    let res = await createTokenAccount(connection, wallet, mintAKey);
-    if (res.code == 1) {
-      userTokenAKey = res.data;
-      console.log('create user token a', userTokenAKey);
-    } else {
-      console.error('create user token a error', res);
-      return res;
-    }
-  }
-  let userTokenBKey;
-  {
-    let res = await createTokenAccount(connection, wallet, mintBKey);
-    if (res.code == 1) {
-      userTokenBKey = res.data;
-      console.log('create user token b', userTokenBKey);
-    } else {
-      console.error('create user token b error', res);
-      return res;
-    }
-  }
-  // mint token for user
-  {
-    let res = await mintToTokenAccount(connection, wallet, userTokenAKey, 3);
-    if (res.code == 1) {
-      console.log('mint to user token a ok');
-    } else {
-      console.error('mint to user token a error', res);
-      return res;
-    }
-  }
-  {
-    let res = await mintToTokenAccount(connection, wallet, userTokenBKey, 1000);
-    if (res.code == 1) {
-      console.log('mint to user token b ok');
-    } else {
-      console.error('mint to user token b error', res);
-      return res;
-    }
-  }
-  return { code: 1, msg: 'init env ok' };
+  return { code: 1, msg: "init env ok" };
 }
 
 // test
@@ -106,16 +68,16 @@ async function main() {
       let list = await findPoolByOwner(connection, payer.publicKey.toBase58());
       if (list.length > 0) {
         poolKey = list[0].pubkey.toBase58();
-        console.log('pool exist', poolKey);
+        console.log("pool exist", poolKey);
       }
     }
-    if (poolKey == '') {
+    if (poolKey == "") {
       // if pool is null, start init
       {
         // create mint user token account
         let res = await initEnv(connection, payer);
         if (res.code == 1) {
-          console.log('init env ok');
+          console.log("init env ok");
         } else {
           console.error(res);
           return res;
@@ -128,20 +90,10 @@ async function main() {
           rate: 0.0045,
           mint: new PublicKey(mintBKey),
         };
-        let res = await initPool(
-          connection,
-          payer,
-          seed,
-          feeParams,
-          1,
-          150,
-          255,
-          mintAKey,
-          mintBKey
-        );
+        let res = await createPool(connection, payer, feeParams, 1, 150, 255, mintAKey, mintBKey);
         if (res.code == 1) {
           poolKey = res.data;
-          console.log('init pool ok', res.data);
+          console.log("init pool ok", res.data);
         } else {
           console.error(res);
           return res;
@@ -152,35 +104,50 @@ async function main() {
       // get pool data, check if the data is  right
       let res = await getPoolData(connection, poolKey);
       if (res.code == 1) {
-        console.log('get pool data', res.data);
+        console.log("get pool data", res.data);
+      } else {
+        console.error(res);
+        return;
       }
     }
     {
       // swap a to b
       let res = await swap(connection, payer, poolKey, 1, Direction.A2B);
       if (res.code == 1) {
-        console.log('swap a2b ok');
+        console.log("swap a2b ok");
+      } else {
+        console.error(res);
+        return;
       }
     }
     {
       // swap b to a
       let res = await swap(connection, payer, poolKey, 1, Direction.B2A);
       if (res.code == 1) {
-        console.log('swap b2a ok');
+        console.log("swap b2a ok");
+      } else {
+        console.error(res);
+        return;
       }
     }
     {
       // withdrawal fee
       let res = await withdrawalFee(connection, payer, poolKey);
       if (res.code == 1) {
-        console.log('withdrawal fee ok');
+        console.log("withdrawal fee ok");
+      } else {
+        console.error(res);
+        return;
       }
     }
     {
       // terminate
       let res = await terminate(connection, payer, poolKey);
       if (res.code == 1) {
-        console.log('terminate ok');
+        console.log("terminate ok");
+      } else {
+        console.error(res);
+        return;
       }
     }
   } catch (err) {

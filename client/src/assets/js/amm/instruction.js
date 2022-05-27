@@ -1,28 +1,28 @@
-import { TransactionInstruction } from '@solana/web3.js';
-import * as BufferLayout from 'buffer-layout';
+import { TransactionInstruction } from "@solana/web3.js";
+import * as BufferLayout from "buffer-layout";
 
 // buffer layout
 const InitBuffer = BufferLayout.struct([
-  BufferLayout.u8('i'),
-  BufferLayout.u8('nonce'),
-  BufferLayout.nu64('fee'),
-  BufferLayout.nu64('amount_a'),
-  BufferLayout.nu64('amount_b'),
-  BufferLayout.nu64('tolerance'),
+  BufferLayout.u8("i"),
+  BufferLayout.u8("nonce"),
+  BufferLayout.nu64("fee"),
+  BufferLayout.nu64("amount_a"),
+  BufferLayout.nu64("amount_b"),
+  BufferLayout.nu64("tolerance"),
 ]);
-const UpdatePoolBuffer = BufferLayout.struct([BufferLayout.u8('i')]);
-const UpdateStatusBuffer = BufferLayout.struct([BufferLayout.u8('i'), BufferLayout.u8('status')]);
+const UpdatePoolBuffer = BufferLayout.struct([BufferLayout.u8("i")]);
+const UpdateStatusBuffer = BufferLayout.struct([BufferLayout.u8("i"), BufferLayout.u8("status")]);
 const UpdateToleranceBuffer = BufferLayout.struct([
-  BufferLayout.u8('i'),
-  BufferLayout.nu64('tolerance'),
+  BufferLayout.u8("i"),
+  BufferLayout.nu64("tolerance"),
 ]);
-const TerminateBuffer = BufferLayout.struct([BufferLayout.u8('i')]);
+const TerminateBuffer = BufferLayout.struct([BufferLayout.u8("i")]);
 const SwapBuffer = BufferLayout.struct([
-  BufferLayout.u8('i'),
-  BufferLayout.nu64('amount'),
-  BufferLayout.u8('direction'),
+  BufferLayout.u8("i"),
+  BufferLayout.nu64("amount"),
+  BufferLayout.u8("direction"),
 ]);
-const WithdrawalBuffer = BufferLayout.struct([BufferLayout.u8('i')]);
+const WithdrawalBuffer = BufferLayout.struct([BufferLayout.u8("i")]);
 
 // instrucion
 export class AmmInstruction {
@@ -46,40 +46,40 @@ export class AmmInstruction {
     programId
   ) {
     console.log(
-      'init',
-      'nonce',
+      "init",
+      "nonce",
       nonce,
-      'fee',
+      "fee",
       fee,
-      'amount_a',
+      "amount_a",
       amount_a,
-      'amount_b',
+      "amount_b",
       amount_b,
-      'tolerance',
+      "tolerance",
       tolerance,
-      'pool_acc',
+      "pool_acc",
       pool_acc.toBase58(),
-      'owner_acc',
+      "owner_acc",
       owner_acc.toBase58(),
-      'mint_a_acc',
+      "mint_a_acc",
       mint_a_acc.toBase58(),
-      'mint_b_acc',
+      "mint_b_acc",
       mint_b_acc.toBase58(),
-      'vault_a_acc',
+      "vault_a_acc",
       vault_a_acc.toBase58(),
-      'vault_b_acc',
+      "vault_b_acc",
       vault_b_acc.toBase58(),
-      'fee_vault_acc',
+      "fee_vault_acc",
       fee_vault_acc.toBase58(),
-      'pool_pda',
+      "pool_pda",
       pool_pda.toBase58(),
-      'owner_token_a_acc',
+      "owner_token_a_acc",
       owner_token_a_acc.toBase58(),
-      'owner_token_b_acc',
+      "owner_token_b_acc",
       owner_token_b_acc.toBase58(),
-      'token_program_acc',
+      "token_program_acc",
       token_program_acc.toBase58(),
-      'program id',
+      "program id",
       programId.toBase58()
     );
     // data
@@ -113,43 +113,16 @@ export class AmmInstruction {
     let instrucion = new TransactionInstruction({ keys, programId, data });
     return instrucion;
   }
-  static createUpdatePoolInstruction(pool_acc, owner_acc, programId) {
-    console.log(
-      'update pool',
-      'pool_acc',
-      pool_acc.toBase58(),
-      'owner_acc',
-      owner_acc.toBase58(),
-      'program id',
-      programId.toBase58()
-    );
-    // data
-    let data = Buffer.alloc(UpdatePoolBuffer.span);
-    UpdatePoolBuffer.encode(
-      {
-        i: 1,
-      },
-      data
-    );
-    // keys accounts
-    let keys = [
-      { pubkey: pool_acc, isSigner: false, isWritable: true },
-      { pubkey: owner_acc, isSigner: true, isWritable: false },
-    ];
-    // make instruction
-    let instrucion = new TransactionInstruction({ keys, programId, data });
-    return instrucion;
-  }
   static createUpdateStatusInstrucion(status, pool_acc, owner_acc, programId) {
     console.log(
-      'update status',
-      'status',
+      "update status",
+      "status",
       status,
-      'pool_acc',
+      "pool_acc",
       pool_acc.toBase58(),
-      'owner_acc',
+      "owner_acc",
       owner_acc.toBase58(),
-      'program id',
+      "program id",
       programId.toBase58()
     );
     // data
@@ -172,14 +145,14 @@ export class AmmInstruction {
   }
   static createUpdateToleranceInstruction(tolerance, pool_acc, owner_acc, programId) {
     console.log(
-      'update tolerance',
-      'tolerance',
+      "update tolerance",
+      "tolerance",
       tolerance,
-      'pool_acc',
+      "pool_acc",
       pool_acc.toBase58(),
-      'owner_acc',
+      "owner_acc",
       owner_acc.toBase58(),
-      'program id',
+      "program id",
       programId.toBase58()
     );
     // data
@@ -213,26 +186,26 @@ export class AmmInstruction {
     programId
   ) {
     console.log(
-      'terminate',
-      'pool_acc',
+      "terminate",
+      "pool_acc",
       pool_acc.toBase58(),
-      'owner_acc',
+      "owner_acc",
       owner_acc.toBase58(),
-      'vault_a_acc',
+      "vault_a_acc",
       vault_a_acc.toBase58(),
-      'vault_b_acc',
+      "vault_b_acc",
       vault_b_acc.toBase58(),
-      'fee_vault_acc',
+      "fee_vault_acc",
       fee_vault_acc.toBase58(),
-      'pool_pda',
+      "pool_pda",
       pool_pda.toBase58(),
-      'owner_token_a_acc',
+      "owner_token_a_acc",
       owner_token_a_acc.toBase58(),
-      'owner_token_b_acc',
+      "owner_token_b_acc",
       owner_token_b_acc.toBase58(),
-      'token_program_acc',
+      "token_program_acc",
       token_program_acc.toBase58(),
-      'program id',
+      "program id",
       programId.toBase58()
     );
     // data
@@ -274,30 +247,30 @@ export class AmmInstruction {
     programId
   ) {
     console.log(
-      'swap',
-      'amount',
+      "swap",
+      "amount",
       amount,
-      'direction',
+      "direction",
       direction,
-      'pool_acc',
+      "pool_acc",
       pool_acc.toBase58(),
-      'vault_a_acc',
+      "vault_a_acc",
       vault_a_acc.toBase58(),
-      'vault_b_acc',
+      "vault_b_acc",
       vault_b_acc.toBase58(),
-      'fee_vault',
+      "fee_vault",
       fee_vault.toBase58(),
-      'pool_pda',
+      "pool_pda",
       pool_pda.toBase58(),
-      'user_wallet_acc',
+      "user_wallet_acc",
       user_wallet_acc.toBase58(),
-      'user_token_a_acc',
+      "user_token_a_acc",
       user_token_a_acc.toBase58(),
-      'user_token_b_acc',
+      "user_token_b_acc",
       user_token_b_acc.toBase58(),
-      'token_program_acc',
+      "token_program_acc",
       token_program_acc.toBase58(),
-      'program id',
+      "program id",
       programId.toBase58()
     );
     // data
@@ -336,20 +309,20 @@ export class AmmInstruction {
     programId
   ) {
     console.log(
-      'withdrawal fee',
-      'pool_acc',
+      "withdrawal fee",
+      "pool_acc",
       pool_acc.toBase58(),
-      'owner_acc',
+      "owner_acc",
       owner_acc.toBase58(),
-      'fee_vault_acc',
+      "fee_vault_acc",
       fee_vault_acc.toBase58(),
-      'fee_receiver_acc',
+      "fee_receiver_acc",
       fee_receiver_acc.toBase58(),
-      'pool_pda',
+      "pool_pda",
       pool_pda.toBase58(),
-      'token_program_acc',
+      "token_program_acc",
       token_program_acc.toBase58(),
-      'program id',
+      "program id",
       programId.toBase58()
     );
     // data

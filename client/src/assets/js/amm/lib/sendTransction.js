@@ -23,7 +23,7 @@ export async function signAndSendTransaction(connection, wallet, partialSignerLi
       }
     }
   } catch (error) {
-    return { code: -1, msg: 'sign canceled', error };
+    return { code: -1, msg: "sign canceled", error };
   }
   // send transaction
   let res = await sendTransaction(connection, signed.serialize());
@@ -32,7 +32,7 @@ export async function signAndSendTransaction(connection, wallet, partialSignerLi
   } else if (res.code == 0) {
     return res;
   } else {
-    return { code: 0, msg: 'unkown error' };
+    return { code: 0, msg: "unkown error" };
   }
 }
 
@@ -42,17 +42,17 @@ export async function sendTransaction(connection, transaction) {
     let signatrue = await connection.sendRawTransaction(transaction);
     let transactionStatus = await getSignatureStatus(connection, signatrue);
     if (transactionStatus) {
-      return { code: 1, msg: 'send transaction ok', data: signatrue };
+      return { code: 1, msg: "send transaction ok", data: signatrue };
     } else {
       return {
         code: 1,
-        msg: 'can not confirm transaction status please check on explorer',
+        msg: "can not confirm transaction status please check on explorer",
         data: signatrue,
       };
     }
   } catch (error) {
-    console.error('send transaction error', error);
-    return { code: 0, msg: 'send transaction error', data: error };
+    console.error("send transaction error", error);
+    return { code: 0, msg: "send transaction error", data: error };
   }
 }
 
@@ -66,9 +66,9 @@ export async function getSignatureStatus(connection, signatrue) {
     if (temp.value) {
       // let nowDate = new Date();
       // let passTime = nowDate.getTime() - startDate.getTime();
-      // console.log('transaction', temp.value.confirmationStatus, passTime, 'ms');
-      if (temp.value.confirmationStatus == 'finalized') {
-        console.log('transaction finalized', signatrue);
+      // console.log("transaction", temp.value.confirmationStatus, passTime, "ms");
+      if (temp.value.confirmationStatus == "finalized") {
+        console.log("transaction finalized", signatrue);
         flag = false;
         return temp.value;
       } else {

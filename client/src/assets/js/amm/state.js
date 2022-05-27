@@ -1,22 +1,22 @@
-import { PublicKey } from '@solana/web3.js';
-import * as BufferLayout from 'buffer-layout';
+import { PublicKey } from "@solana/web3.js";
+import * as BufferLayout from "buffer-layout";
 
 const PercenMul = 10 ** 6;
 
 // buffer layout
 export const PoolDataLayout = BufferLayout.struct([
-  BufferLayout.u8('status'),
-  BufferLayout.u8('nonce'),
-  BufferLayout.nu64('ka'),
-  BufferLayout.nu64('kb'),
-  BufferLayout.nu64('tolerance'),
-  BufferLayout.nu64('fee'),
-  BufferLayout.blob(32, 'owner'),
-  BufferLayout.blob(32, 'mint_a'),
-  BufferLayout.blob(32, 'mint_b'),
-  BufferLayout.blob(32, 'vault_a'),
-  BufferLayout.blob(32, 'vault_b'),
-  BufferLayout.blob(32, 'fee_vault'),
+  BufferLayout.u8("status"),
+  BufferLayout.u8("nonce"),
+  BufferLayout.nu64("ka"),
+  BufferLayout.nu64("kb"),
+  BufferLayout.nu64("tolerance"),
+  BufferLayout.nu64("fee"),
+  BufferLayout.blob(32, "owner"),
+  BufferLayout.blob(32, "mint_a"),
+  BufferLayout.blob(32, "mint_b"),
+  BufferLayout.blob(32, "vault_a"),
+  BufferLayout.blob(32, "vault_b"),
+  BufferLayout.blob(32, "fee_vault"),
 ]);
 
 // function
@@ -27,11 +27,11 @@ export async function getPoolData(connection, poolKey) {
   let poolData = await connection.getAccountInfo(poolAcc);
   if (poolData) {
     let temp = PoolDataLayout.decode(poolData.data);
-    temp['poolKey'] = poolKey;
+    temp["poolKey"] = poolKey;
     temp.fee /= PercenMul;
-    return { code: 1, msg: 'get pool data ok', data: handleKey(temp) };
+    return { code: 1, msg: "get pool data ok", data: handleKey(temp) };
   } else {
-    return { code: 0, msg: 'pool is null', data: null };
+    return { code: 0, msg: "pool is null", data: null };
   }
 }
 
