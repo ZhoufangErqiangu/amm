@@ -3,20 +3,45 @@
     <el-card>
       <div slot="header">
         <span>Find Pool</span>
-        <el-button class="ml15" size="mini" type="primary" :loading="loading" @click="onFind">
+        <el-button
+          class="ml15"
+          size="mini"
+          type="primary"
+          :loading="loading"
+          @click="onFind"
+        >
           Find
         </el-button>
-        <el-button class="ml15" size="mini" type="primary" :loading="loading2" @click="onFindAll">
+        <el-button
+          class="ml15"
+          size="mini"
+          type="primary"
+          :loading="loading2"
+          @click="onFindAll"
+        >
           Find All
         </el-button>
       </div>
       <div>
-        <el-form :rules="rules" :model="option" label-width="150px" @validate="onValidate">
+        <el-form
+          :rules="rules"
+          :model="option"
+          label-width="150px"
+          @validate="onValidate"
+        >
           <el-form-item prop="mint" label="Mint A Address">
-            <el-input v-model="option.mintA" placeholder="Mint Address" clearable></el-input>
+            <el-input
+              v-model="option.mintA"
+              placeholder="Mint Address"
+              clearable
+            ></el-input>
           </el-form-item>
           <el-form-item prop="mint" label="Mint B Address">
-            <el-input v-model="option.mintB" placeholder="Mint Address" clearable></el-input>
+            <el-input
+              v-model="option.mintB"
+              placeholder="Mint Address"
+              clearable
+            ></el-input>
           </el-form-item>
         </el-form>
       </div>
@@ -26,7 +51,11 @@
         <span>Pool List</span>
       </div>
       <div class="none" v-show="list.length === 0">No Data</div>
-      <pool-unit v-for="(item, index) in list" :key="index" :data="item"></pool-unit>
+      <pool-unit
+        v-for="(item, index) in list"
+        :key="index"
+        :data="item"
+      ></pool-unit>
     </el-card>
   </div>
 </template>
@@ -70,11 +99,19 @@ export default {
         }
         let list = [];
         {
-          let res = await findPoolByMints(connection, this.option.mintA, this.option.mintB);
+          let res = await findPoolByMints(
+            connection,
+            this.option.mintA,
+            this.option.mintB
+          );
           list = list.concat(res);
         }
         {
-          let res = await findPoolByMints(connection, this.option.mintB, this.option.mintA);
+          let res = await findPoolByMints(
+            connection,
+            this.option.mintB,
+            this.option.mintA
+          );
           list = list.concat(res);
         }
         this.$message({ message: "Find ok", type: "success" });

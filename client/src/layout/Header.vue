@@ -25,10 +25,10 @@
 </template>
 
 <script>
-import { connectWallet, disconnectWallet } from '../plugin/wallet';
+import { connectWallet, disconnectWallet } from "../plugin/wallet";
 
 export default {
-  name: 'Head',
+  name: "Head",
   data() {
     return {
       loading: false,
@@ -43,7 +43,7 @@ export default {
         this.loading = false;
       } catch (err) {
         this.loading = false;
-        console.error('wallet connect error', err);
+        console.error("wallet connect error", err);
       }
     },
     async onDisconnect() {
@@ -53,7 +53,7 @@ export default {
         this.loading = false;
       } catch (err) {
         this.loading = false;
-        console.error('wallet connect error', err);
+        console.error("wallet connect error", err);
       }
     },
   },

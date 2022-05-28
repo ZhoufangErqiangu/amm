@@ -1,14 +1,43 @@
 <template>
   <div class="pu-box">
     <el-form label-width="150px">
-      <el-form-item label="Address">{{ data.poolKey }}</el-form-item>
+      <el-form-item label="Address">
+        {{ data.poolKey }}
+        <el-button
+          type="danger"
+          size="mini"
+          class="ml15"
+          v-show="isOwner"
+          @click="onTerminate"
+          :loading="loading4"
+        >
+          Terminate
+        </el-button>
+      </el-form-item>
       <el-form-item label="Status">
         <span v-if="data.status === 0">Not Init</span>
         <span v-else-if="data.status === 1">Nomal</span>
         <span v-else-if="data.status === 2">Lock</span>
         <span v-else>Unknown</span>
-        <el-button type="primary" size="mini" class="ml15" v-show="isOwner">
-          Change
+        <el-button
+          type="warning"
+          size="mini"
+          class="ml15"
+          v-show="isOwner && data.status != 1"
+          @click="onChangeStatus(1)"
+          :loading="loading2"
+        >
+          Nomal
+        </el-button>
+        <el-button
+          type="warning"
+          size="mini"
+          class="ml15"
+          v-show="isOwner && data.status != 2"
+          @click="onChangeStatus(2)"
+          :loading="loading2"
+        >
+          Lock
         </el-button>
       </el-form-item>
       <el-form-item label="Mint A">{{ data.mint_a }}</el-form-item>
@@ -16,7 +45,13 @@
       <el-form-item label="Fee Rate">{{ data.fee * 100 }} %</el-form-item>
       <el-form-item label="Fee Amount" v-show="isOwner">
         {{ feeAmount }}
-        <el-button type="primary" size="mini" class="ml15">
+        <el-button
+          type="primary"
+          size="mini"
+          class="ml15"
+          @click="onWithdrawalFee"
+          :loading="loading3"
+        >
           Withdrawal Fee
         </el-button>
       </el-form-item>
@@ -52,8 +87,14 @@
 import store from "../../store";
 import { Connection } from "@solana/web3.js";
 import { rpcUrl } from "../../assets/js";
-import { swap } from "../../assets/js/amm";
+import {
+  swap,
+  terminate,
+  updateStatus,
+  withdrawalFee,
+} from "../../assets/js/amm";
 import { wallet } from "../../plugin/wallet";
+import { getTokenAccountData } from "../../assets/js/amm/lib/tokenAccount";
 const connection = new Connection(rpcUrl);
 
 export default {
@@ -92,10 +133,18 @@ export default {
         { label: "B2A", value: 2 },
       ],
       loading: false,
+      loading2: false,
+      loading3: false,
+      loading4: false,
     };
   },
   methods: {
-    async getData() {},
+    async getData() {
+      let res = await getTokenAccountData(connection, this.data.fee_vault);
+      if (res.code == 1) {
+        this.feeAmount = res.data.amount;
+      }
+    },
     async onSwap() {
       if (!(this.option.amount > 0)) {
         this.$message({ message: "Must input valid amount.", type: "warning" });
@@ -121,6 +170,71 @@ export default {
         this.$message({ message: "Swap error", type: "error" });
       }
       this.loading = false;
+    },
+    async onChangeStatus(status) {
+      if (!this.isOwner) {
+        this.$message({ message: "Must be owner.", type: "warning" });
+        return;
+      }
+      this.loading2 = true;
+      try {
+        let res = await updateStatus(
+          connection,
+          wallet,
+          this.data.poolKey,
+          status
+        );
+        if (res.code == 1) {
+          this.$message({ message: "Change status OK", type: "success" });
+        } else {
+          console.warn("change status fail", res);
+          this.$message({ message: "Change status fail", type: "warning" });
+        }
+      } catch (err) {
+        console.error("change status error", err);
+        this.$message({ message: "Change status error", type: "error" });
+      }
+      this.loading2 = false;
+    },
+    async onWithdrawalFee() {
+      if (!this.isOwner) {
+        this.$message({ message: "Must be owner.", type: "warning" });
+        return;
+      }
+      this.loading3 = true;
+      try {
+        let res = await withdrawalFee(connection, wallet, this.data.poolKey);
+        if (res.code == 1) {
+          this.$message({ message: "Withdrawal OK", type: "success" });
+        } else {
+          console.warn("withdrawal fail", res);
+          this.$message({ message: "Withdrawal fail", type: "warning" });
+        }
+      } catch (err) {
+        console.error("withdrawal error", err);
+        this.$message({ message: "Change error", type: "error" });
+      }
+      this.loading3 = false;
+    },
+    async onTerminate() {
+      if (!this.isOwner) {
+        this.$message({ message: "Must be owner.", type: "warning" });
+        return;
+      }
+      this.loading4 = true;
+      try {
+        let res = await terminate(connection, wallet, this.data.poolKey);
+        if (res.code == 1) {
+          this.$message({ message: "Withdrawal OK", type: "success" });
+        } else {
+          console.warn("withdrawal fail", res);
+          this.$message({ message: "Withdrawal fail", type: "warning" });
+        }
+      } catch (err) {
+        console.error("withdrawal error", err);
+        this.$message({ message: "Change error", type: "error" });
+      }
+      this.loading4 = false;
     },
   },
   mounted() {

@@ -3,32 +3,66 @@
     <el-card class="mt25">
       <div slot="header">
         Create Pool
-        <el-button class="ml15" size="mini" type="primary" @click="onCreate" :loading="loading"
+        <el-button
+          class="ml15"
+          size="mini"
+          type="primary"
+          @click="onCreate"
+          :loading="loading"
           >Create</el-button
         >
       </div>
-      <el-form :rules="rules" :model="option" label-width="150px" @validate="onValidate">
+      <el-form
+        :rules="rules"
+        :model="option"
+        label-width="150px"
+        @validate="onValidate"
+      >
         <el-form-item prop="mint" label="Mint A Address">
-          <el-input v-model="option.mintA" placeholder="Mint Address" clearable></el-input>
+          <el-input
+            v-model="option.mintA"
+            placeholder="Mint Address"
+            clearable
+          ></el-input>
         </el-form-item>
         <el-form-item prop="amount" label="Mint A Amount">
-          <el-input v-model="option.amountA" placeholder="Amount" type="number"></el-input>
+          <el-input
+            v-model="option.amountA"
+            placeholder="Amount"
+            type="number"
+          ></el-input>
         </el-form-item>
         <el-form-item prop="mint" label="Mint B Address">
-          <el-input v-model="option.mintB" placeholder="Mint Address" clearable></el-input>
+          <el-input
+            v-model="option.mintB"
+            placeholder="Mint Address"
+            clearable
+          ></el-input>
         </el-form-item>
         <el-form-item prop="amount" label="Mint B Amount">
-          <el-input v-model="option.amountB" placeholder="Amount" type="number"></el-input>
+          <el-input
+            v-model="option.amountB"
+            placeholder="Amount"
+            type="number"
+          ></el-input>
         </el-form-item>
         <el-form-item prop="mint" label="Fee Mint Address">
-          <el-input v-model="option.feeParams.mint" placeholder="Mint Address" clearable></el-input>
+          <el-input
+            v-model="option.feeParams.mint"
+            placeholder="Mint Address"
+            clearable
+          ></el-input>
         </el-form-item>
         <el-form-item prop="rate" label="Fee Rate">
-          <el-input v-model="option.feeParams.rate" placeholder="Fee Rate" type="number"></el-input>
+          <el-input
+            v-model="option.feeParams.rate"
+            placeholder="Fee Rate"
+            type="number"
+          ></el-input>
         </el-form-item>
-        <el-form-item prop="tolerance" label="Tolerance">
+        <!-- <el-form-item prop="tolerance" label="Tolerance">
           <el-input v-model="option.tolerance" placeholder="Tolerance" type="number"></el-input>
-        </el-form-item>
+        </el-form-item> -->
       </el-form>
     </el-card>
   </div>
@@ -61,9 +95,15 @@ export default {
         mint: [{ require: true, message: "Must input Mint", trigger: "blur" }],
         amount: [
           { require: true, message: "Must input amount", trigger: "blur" },
-          { min: 1, message: "Amount must be bigger than Zero", trigger: "blur" },
+          {
+            min: 1,
+            message: "Amount must be bigger than Zero",
+            trigger: "blur",
+          },
         ],
-        tolerance: [{ require: true, message: "Must input tolerance", trigger: "blur" }],
+        tolerance: [
+          { require: true, message: "Must input tolerance", trigger: "blur" },
+        ],
         rate: [
           { require: true, message: "Must input fee rate", trigger: "blur" },
           {
