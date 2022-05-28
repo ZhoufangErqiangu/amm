@@ -4,6 +4,8 @@
 
 Automated market makers smart contract
 
+Test page: https://www.aposimz.xyz/amm/ (only on devnet)
+
 **This code has NOT been audit, use on your own risk.**
 
 ## Software framework
