@@ -3,6 +3,7 @@ import VueRouter from "vue-router";
 import AppIndex from "../views/Index.vue";
 
 const defaultTitle = "AMM";
+const vueConfig = require("../../vue.config");
 
 Vue.use(VueRouter);
 
@@ -19,7 +20,7 @@ const routes = [
 
 const router = new VueRouter({
   mode: "history",
-  base:'/amm',
+  base: vueConfig.publicPath,
   routes,
 });
 
