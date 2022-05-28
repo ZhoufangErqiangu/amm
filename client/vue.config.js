@@ -1,7 +1,7 @@
 const publicPath = "/amm";
 
 module.exports = {
-  publicPath: process.env.ENV !== "production" ? "/" : publicPath,
+  publicPath: publicPath,
   productionSourceMap: false,
   devServer: {
     open: true,
