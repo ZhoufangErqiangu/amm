@@ -6,6 +6,9 @@
         <el-button class="ml15" size="mini" type="primary" :loading="loading" @click="onFind">
           Find
         </el-button>
+        <el-button class="ml15" size="mini" type="primary" :loading="loading2" @click="onFindAll">
+          Find All
+        </el-button>
       </div>
       <div>
         <el-form :rules="rules" :model="option" label-width="150px" @validate="onValidate">
@@ -32,7 +35,7 @@
 import PoolUnit from "./PoolUnit.vue";
 import { Connection } from "@solana/web3.js";
 import { rpcUrl } from "../../assets/js";
-import { findPoolByMints, getPoolsData } from "../../assets/js/amm";
+import { findPool, findPoolByMints, getPoolsData } from "../../assets/js/amm";
 const connection = new Connection(rpcUrl);
 
 export default {
@@ -43,6 +46,7 @@ export default {
   data() {
     return {
       loading: false,
+      loading2: false,
       validateOK: false,
       list: [],
       option: {
@@ -80,6 +84,22 @@ export default {
         this.$message({ message: "Find error", type: "error" });
       }
       this.loading = false;
+    },
+    async onFindAll() {
+      this.loading2 = true;
+      try {
+        let list = [];
+        {
+          let res = await findPool(connection);
+          list = list.concat(res);
+        }
+        this.$message({ message: "Find ok", type: "success" });
+        this.list = getPoolsData(list);
+      } catch (err) {
+        console.error("find error", err);
+        this.$message({ message: "Find error", type: "error" });
+      }
+      this.loading2 = false;
     },
     onValidate(value, pass, err) {
       this.validateOK = pass;

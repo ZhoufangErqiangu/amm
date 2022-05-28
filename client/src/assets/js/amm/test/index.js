@@ -48,7 +48,7 @@ async function initEnv(connection, wallet) {
     }
   }
   {
-    let res = await initMintAndTokenAccount(connection, wallet, 9, 1000);
+    let res = await initMintAndTokenAccount(connection, wallet, 6, 1000);
     if (res.code == 1) {
       mintBKey = res.data;
       console.log("mint b", mintBKey);

@@ -450,7 +450,7 @@ impl Processor {
             }
         }
         // check if k is within tolerance
-        Self::check_amount_tolerance(pool, direction, amount, amount_transfer, vault_a, vault_b)?;
+        // Self::check_amount_tolerance(pool, direction, amount, amount_transfer, vault_a, vault_b)?;
         // transfer fee
         let fee_mount = amount_transfer
             .checked_mul(pool.fee)
@@ -584,7 +584,7 @@ impl Processor {
         Ok(amount_b as u64)
     }
 
-    fn check_amount_tolerance(
+    fn _check_amount_tolerance(
         pool: AmmPool,
         direction: Direction,
         amount: u64,

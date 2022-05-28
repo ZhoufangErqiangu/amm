@@ -3,7 +3,9 @@
     <el-card class="mt25">
       <div slot="header">
         Create Pool
-        <el-button class="ml15" size="mini" type="primary" @click="onCreate">Create</el-button>
+        <el-button class="ml15" size="mini" type="primary" @click="onCreate" :loading="loading"
+          >Create</el-button
+        >
       </div>
       <el-form :rules="rules" :model="option" label-width="150px" @validate="onValidate">
         <el-form-item prop="mint" label="Mint A Address">
@@ -27,7 +29,6 @@
         <el-form-item prop="tolerance" label="Tolerance">
           <el-input v-model="option.tolerance" placeholder="Tolerance" type="number"></el-input>
         </el-form-item>
-        <el-form-item> </el-form-item>
       </el-form>
     </el-card>
   </div>
@@ -47,14 +48,14 @@ export default {
     return {
       option: {
         feeParams: {
-          mint: "9shyAizyTSUYnQPu2hDuphv9eW17V9xJProXAghEAbv4",
+          mint: "",
           rate: 0.01,
         },
         amountA: 100,
         amountB: 100,
         tolerance: 1000,
-        mintA: "GEEJqrshj3r4CbSN7fJk6haCPBTLWczaw3UGepB8hVE2",
-        mintB: "9shyAizyTSUYnQPu2hDuphv9eW17V9xJProXAghEAbv4",
+        mintA: "",
+        mintB: "",
       },
       rules: {
         mint: [{ require: true, message: "Must input Mint", trigger: "blur" }],

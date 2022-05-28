@@ -1,12 +1,61 @@
 <template>
   <div class="pu-box">
-    <div>Address {{ data.poolKey }}</div>
-    <div>Mint A {{ data.mint_a }}</div>
-    <div>Mint B {{ data.mint_b }}</div>
+    <el-form label-width="150px">
+      <el-form-item label="Address">{{ data.poolKey }}</el-form-item>
+      <el-form-item label="Status">
+        <span v-if="data.status === 0">Not Init</span>
+        <span v-else-if="data.status === 1">Nomal</span>
+        <span v-else-if="data.status === 2">Lock</span>
+        <span v-else>Unknown</span>
+        <el-button type="primary" size="mini" class="ml15" v-show="isOwner">
+          Change
+        </el-button>
+      </el-form-item>
+      <el-form-item label="Mint A">{{ data.mint_a }}</el-form-item>
+      <el-form-item label="Mint B">{{ data.mint_b }}</el-form-item>
+      <el-form-item label="Fee Rate">{{ data.fee * 100 }} %</el-form-item>
+      <el-form-item label="Fee Amount" v-show="isOwner">
+        {{ feeAmount }}
+        <el-button type="primary" size="mini" class="ml15">
+          Withdrawal Fee
+        </el-button>
+      </el-form-item>
+    </el-form>
+    <el-form :model="option" label-width="150px" :inline="true">
+      <el-form-item label="Swap Amount">
+        <el-input
+          v-model="option.amount"
+          placeholder="Amount"
+          type="number"
+        ></el-input>
+      </el-form-item>
+      <el-form-item label="Direction">
+        <el-select v-model="option.direction">
+          <el-option
+            v-for="item in options"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          ></el-option>
+        </el-select>
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" @click="onSwap" :loading="loading">
+          Swap
+        </el-button>
+      </el-form-item>
+    </el-form>
   </div>
 </template>
 
 <script>
+import store from "../../store";
+import { Connection } from "@solana/web3.js";
+import { rpcUrl } from "../../assets/js";
+import { swap } from "../../assets/js/amm";
+import { wallet } from "../../plugin/wallet";
+const connection = new Connection(rpcUrl);
+
 export default {
   name: "PoolUnit",
   props: {
@@ -31,7 +80,60 @@ export default {
       },
     },
   },
-  computed: {},
+  data() {
+    return {
+      feeAmount: 0,
+      option: {
+        amount: 0,
+        direction: 1,
+      },
+      options: [
+        { label: "A2B", value: 1 },
+        { label: "B2A", value: 2 },
+      ],
+      loading: false,
+    };
+  },
+  methods: {
+    async getData() {},
+    async onSwap() {
+      if (!(this.option.amount > 0)) {
+        this.$message({ message: "Must input valid amount.", type: "warning" });
+        return;
+      }
+      this.loading = true;
+      try {
+        let res = await swap(
+          connection,
+          wallet,
+          this.data.poolKey,
+          this.option.amount,
+          this.option.direction
+        );
+        if (res.code == 1) {
+          this.$message({ message: "Swap OK", type: "success" });
+        } else {
+          console.warn("swap fail", res);
+          this.$message({ message: "Swap fail", type: "warning" });
+        }
+      } catch (err) {
+        console.error("swap error", err);
+        this.$message({ message: "Swap error", type: "error" });
+      }
+      this.loading = false;
+    },
+  },
+  mounted() {
+    this.getData();
+  },
+  computed: {
+    walletKey() {
+      return store.state.publicKey;
+    },
+    isOwner() {
+      return this.walletKey === this.data.owner;
+    },
+  },
 };
 </script>
 
