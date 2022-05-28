@@ -24,6 +24,8 @@ const router = new VueRouter({
   routes,
 });
 
+console.log("router", router);
+
 router.beforeEach((to, _from, next) => {
   console.log("route to", to);
   let title;

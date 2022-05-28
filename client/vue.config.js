@@ -1,4 +1,4 @@
-const publicPath = "/amm/";
+const publicPath = "/amm";
 
 module.exports = {
   publicPath: process.env.ENV !== "production" ? "/" : publicPath,
