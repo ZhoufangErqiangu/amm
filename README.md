@@ -1,61 +1,62 @@
-# 自动做市机
+# Automated market makers
 
-## 总览
+## Overview
 
-自动做市机智能合约
+Automated market makers smart contract
 
-**此代码未经审计,使用者自行承担风险**
+**This code has NOT been audit, use on your own risk.**
 
-## 软件架构
+## Software framework
 
-参见 https://docs.solana.com/developing/programming-model/overview
+read https://docs.solana.com/developing/programming-model/overview
 
-## 设计
+## Design
 
-### 角色
+### Role
 
-1. 拥有者
-2. 用户
+1. Owner
+2. User
 
-### 业务操作
+### Business
 
-1. 创建
+1. Create
 
-   拥有者创建amm pool,创建时转入一定数量的两种token
+   Owner creats amm pool, transfer two kinds of tokens when creating.
 
-   由此产生固定的k,k值为转入的token数额之积
+   Then we have the fixed k, k value is the product of tokens' amount.
 
-2. swap
+2. Swap
 
-   用户转入一种token,换取另外一种token
+   User transfers token into amm pool, for swapping another token.
 
-   转入转出的数额满足以下公式
+   Amounts of transfer is follow the formula below.
    $$
    (a-∆a)*(b+∆b)=k
    $$
-   实际由于计算精度有限,会存在一定误差
+   In fact, because of calculate resolution is limited, there will be a little error.
 
-3. 终止
+3. Terminate
 
-   拥有者终止amm pool,提取其中所有的token,并关闭所有账户
+   Owner terminate the amm pool, withdrawal all tokens, and close all account.
 
 4. fee
 
-   用户swap时向amm pool中额外转入一定数额的token作为fee
+   User transfers some extra token as fee, when swapping.
 
-   fee的mint和倍率由拥有者在创建时指定
+   The fee mint and rate is configured by owner, when creating.
 
-   拥有者可随时提取fee
+   Owner could withdrawal fee any time.
 
-   终止时,拥有者提取所有fee
+   Owner will withdrawal all fee when terminating.
 
-## 安装
 
-1. 安装 rustc v1.56.1,参见https://www.rust-lang.org/tools/install
+## Install
 
-2. 安装 solana cli v1.9.5,参见https://docs.solana.com/cli/install-solana-cli-tools
+1. install rustc v1.56.1, read https://www.rust-lang.org/tools/install
 
-3. 确认 id.json 文件路径
+2. install solana cli v1.9.5, read https://docs.solana.com/cli/install-solana-cli-tools
+
+3. confirm id.json file path
 
 4. build
 
@@ -63,41 +64,43 @@
    cargo build-bpf
    ```
 
-5. 确认 id.json 文件钱包中拥有足够的SOL
+5. confirm id.json file wallet has enough SOL.
 
-6. 部署
+6. deploy
 
    ```bash
    solana program deploy target/deploy/amm.so
    ```
 
-7. 编辑js/index.js中的AmmProgramId
+7. edit AmmProgramId which is in js/index.js 
 
-7. 测试
+8. test
 
    ```bash
    npm run test
    ```
 
-## 文件
+## File
 
-1. src/ 合约代码
-2. js/ 调用合约的js代码
-3. client/ 客户端应用
+1. src/ smart contract code
+2. js/ js code for calling smart contract
+3. client/ client application
 
-## 已知问题
+## Known Problem
 
-1. 当某一token数额为0,或将变为0时,swap失败
-2. fee以amm pool中的一种token数额为基础计算,可能由于精度问题无法计算
-3. 尚无合理方法检查swap误差
+1. When token amount is zero, or it would be zero, swap will fail.
+2. Fee is calculated base on token amount, it might be error because of decimals.
+3. There isn't a reasonable for checking swap calculation error. 
 
-## 计划
+## Plan
 
-超级swap
+super swap
 
-假设有两个amm pool,其token分别为a/b和b/c,则进行两次swap,以b为中间量,直接swap a/c.
+There is two amm pool, they has token a/b and b/c.
 
-## 常用命令
+Then it could swap twice, swap a/c by using b as middle template.
+
+## Useful commandd
 
 ```bash
 export PATH="/home/ubuntu/.local/share/solana/install/active_release/bin:$PATH"
