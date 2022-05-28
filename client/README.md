@@ -1,4 +1,4 @@
-# chating-ui
+# amm-ui
 
 ## Project setup
 ```
