@@ -1,8 +1,17 @@
 import { AccountLayout, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
+import {
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  Transaction
+} from "@solana/web3.js";
 import { AmmInstruction } from "./instruction.js";
 import { signAndSendTransaction } from "./lib/sendTransction.js";
-import { getMintData, getTokenAccountData, getTokenAccountMaxAmount } from "./lib/tokenAccount.js";
+import {
+  getMintData,
+  getTokenAccountData,
+  getTokenAccountMaxAmount
+} from "./lib/tokenAccount.js";
 import { getPoolData, getPoolDataRaw, PoolDataLayout } from "./state.js";
 
 // program
@@ -33,7 +42,10 @@ export async function createPool(
   if (poolData) {
     return { code: -2, msg: "pool exist", data: poolAcc.toBase58() };
   }
-  let [poolPDA, nonce] = await PublicKey.findProgramAddress([poolAcc.toBuffer()], programId);
+  let [poolPDA, nonce] = await PublicKey.findProgramAddress(
+    [poolAcc.toBuffer()],
+    programId
+  );
   let mintAAcc = new PublicKey(mintAKey);
   let mintBAcc = new PublicKey(mintBKey);
   let userTokenAKey;
@@ -74,8 +86,12 @@ export async function createPool(
     }
   }
   // create account
-  let lamportsP = await connection.getMinimumBalanceForRentExemption(PoolDataLayout.span);
-  let lamports = await connection.getMinimumBalanceForRentExemption(AccountLayout.span);
+  let lamportsP = await connection.getMinimumBalanceForRentExemption(
+    PoolDataLayout.span
+  );
+  let lamports = await connection.getMinimumBalanceForRentExemption(
+    AccountLayout.span
+  );
   let vaultAAccount = new Keypair();
   let vaultBAccount = new Keypair();
   let feeVaultAccount = new Keypair();
@@ -125,7 +141,7 @@ export async function createPool(
     }),
     Token.createInitAccountInstruction(
       TOKEN_PROGRAM_ID,
-      new PublicKey(feeParams.mint),
+      mintBAcc,
       feeVaultAccount.publicKey,
       poolPDA
     ),
@@ -234,7 +250,12 @@ export async function updateStatus(connection, wallet, poolKey, status) {
   let poolAcc = new PublicKey(poolKey);
   // make transaction
   let tx = new Transaction().add(
-    AmmInstruction.createUpdateStatusInstrucion(status, poolAcc, walletAcc, programId)
+    AmmInstruction.createUpdateStatusInstrucion(
+      status,
+      poolAcc,
+      walletAcc,
+      programId
+    )
   );
   let res = await signAndSendTransaction(connection, wallet, null, tx);
   if (res.code == 1) {
@@ -255,7 +276,12 @@ export async function updateTolerance(connection, wallet, poolKey, tolerance) {
   let poolAcc = new PublicKey(poolKey);
   // make transaction
   let tx = new Transaction().add(
-    AmmInstruction.createUpdateToleranceInstruction(tolerance, poolAcc, walletAcc, programId)
+    AmmInstruction.createUpdateToleranceInstruction(
+      tolerance,
+      poolAcc,
+      walletAcc,
+      programId
+    )
   );
   let res = await signAndSendTransaction(connection, wallet, null, tx);
   if (res.code == 1) {
@@ -296,7 +322,11 @@ export async function terminate(connection, wallet, poolKey) {
   }
   let userTokenAKey;
   {
-    let res = await getTokenAccountMaxAmount(connection, wallet, poolData.mint_a);
+    let res = await getTokenAccountMaxAmount(
+      connection,
+      wallet,
+      poolData.mint_a
+    );
     if (res.code == 1) {
       userTokenAKey = res.data.publicKey;
     } else {
@@ -305,7 +335,11 @@ export async function terminate(connection, wallet, poolKey) {
   }
   let userTokenBKey;
   {
-    let res = await getTokenAccountMaxAmount(connection, wallet, poolData.mint_b);
+    let res = await getTokenAccountMaxAmount(
+      connection,
+      wallet,
+      poolData.mint_b
+    );
     if (res.code == 1) {
       userTokenBKey = res.data.publicKey;
     } else {
@@ -376,7 +410,11 @@ export async function swap(connection, wallet, poolKey, amount, direction) {
   }
   let userTokenAKey;
   {
-    let res = await getTokenAccountMaxAmount(connection, wallet, poolData.mint_a);
+    let res = await getTokenAccountMaxAmount(
+      connection,
+      wallet,
+      poolData.mint_a
+    );
     if (res.code == 1) {
       userTokenAKey = res.data.publicKey;
     } else {
@@ -385,7 +423,11 @@ export async function swap(connection, wallet, poolKey, amount, direction) {
   }
   let userTokenBKey;
   {
-    let res = await getTokenAccountMaxAmount(connection, wallet, poolData.mint_b);
+    let res = await getTokenAccountMaxAmount(
+      connection,
+      wallet,
+      poolData.mint_b
+    );
     if (res.code == 1) {
       userTokenBKey = res.data.publicKey;
     } else {
@@ -422,7 +464,13 @@ export async function swap(connection, wallet, poolKey, amount, direction) {
   }
 }
 
-export async function superSwap(connection, wallet, poolKey1, poolKey2, amount) {}
+export async function superSwap(
+  connection,
+  wallet,
+  poolKey1,
+  poolKey2,
+  amount
+) {}
 
 export async function withdrawalFee(connection, wallet, poolKey) {
   // use account
@@ -441,7 +489,11 @@ export async function withdrawalFee(connection, wallet, poolKey) {
   // use account
   let userTokenBKey;
   {
-    let res = await getTokenAccountMaxAmount(connection, wallet, poolData.mint_b);
+    let res = await getTokenAccountMaxAmount(
+      connection,
+      wallet,
+      poolData.mint_b
+    );
     if (res.code == 1) {
       userTokenBKey = res.data.publicKey;
     } else {
@@ -482,7 +534,12 @@ export async function withdrawalFee(connection, wallet, poolKey) {
   }
 }
 
-export async function calculateSwapAmount(connection, poolKey, amount, direction) {
+export async function calculateSwapAmount(
+  connection,
+  poolKey,
+  amount,
+  direction
+) {
   // use data
   let poolData;
   {

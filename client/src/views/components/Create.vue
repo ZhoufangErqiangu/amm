@@ -46,13 +46,6 @@
             type="number"
           ></el-input>
         </el-form-item>
-        <el-form-item prop="mint" label="Fee Mint Address">
-          <el-input
-            v-model="option.feeParams.mint"
-            placeholder="Mint Address"
-            clearable
-          ></el-input>
-        </el-form-item>
         <el-form-item prop="rate" label="Fee Rate">
           <el-input
             v-model="option.feeParams.rate"

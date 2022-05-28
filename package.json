@@ -11,7 +11,7 @@
   "license": "Apache",
   "type": "module",
   "scripts": {
-    "test": "node js/test/index.js",
+    "test": "node js/test/test.js",
     "init": "node js/test/init.js",
     "start-test-validator": "solana-test-validator --reset",
     "start-test-validator2": "solana-test-validator",

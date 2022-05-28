@@ -102,6 +102,7 @@ export async function main() {
       {
         // create and init pool
         // 0.01 means 1%
+        // fee mint must be mint b
         let feeParams = {
           rate: 0.0045,
           mint: new PublicKey(mintBKey),
