@@ -1,7 +1,8 @@
-const publicPath = "/";
+const publicPath = "/amm";
 
 module.exports = {
-  publicPath: publicPath,
+  publicPath: process.env.ENV !== "production" ? "/" : publicPath,
+  productionSourceMap: false,
   devServer: {
     open: true,
     overlay: {
@@ -11,6 +12,6 @@ module.exports = {
   },
   css: {
     extract: true,
-    sourceMap: false,
+    sourceMap: process.env.ENV !== "production",
   },
 };
