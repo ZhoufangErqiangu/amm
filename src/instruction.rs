@@ -18,8 +18,8 @@ pub enum Direction {
 impl fmt::Display for Direction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let status: String = match self {
-            Direction::A2B => "A to B".to_string(),
-            Direction::B2A => "B to A".to_string(),
+            Direction::A2B => "Swap direction: A to B".to_string(),
+            Direction::B2A => "Swap direction: B to A".to_string(),
         };
         write!(f, "{}", status)
     }

@@ -31,6 +31,9 @@ pub enum AmmError {
     /// mint not match
     #[error("InvalidMint")]
     InvalidMint,
+    /// mint decimals not in order
+    #[error("InvalidMintDecimals")]
+    InvalidMintDecimals,
     /// The pool status is invalid.
     #[error("InvalidStatus")]
     InvalidStatus,

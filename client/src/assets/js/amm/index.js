@@ -3,14 +3,14 @@ import {
   Keypair,
   PublicKey,
   SystemProgram,
-  Transaction
+  Transaction,
 } from "@solana/web3.js";
 import { AmmInstruction } from "./instruction.js";
 import { signAndSendTransaction } from "./lib/sendTransction.js";
 import {
   getMintData,
   getTokenAccountData,
-  getTokenAccountMaxAmount
+  getTokenAccountMaxAmount,
 } from "./lib/tokenAccount.js";
 import { getPoolData, getPoolDataRaw, PoolDataLayout } from "./state.js";
 
@@ -29,9 +29,11 @@ export async function createPool(
   amountA,
   amountB,
   tolerance,
-  mintAKey,
-  mintBKey
+  mintAKey1,
+  mintBKey1
 ) {
+  let mintAKey = mintAKey1;
+  let mintBKey = mintBKey1;
   // use account
   let walletAcc = wallet.publicKey;
   // create
@@ -46,26 +48,6 @@ export async function createPool(
     [poolAcc.toBuffer()],
     programId
   );
-  let mintAAcc = new PublicKey(mintAKey);
-  let mintBAcc = new PublicKey(mintBKey);
-  let userTokenAKey;
-  {
-    let res = await getTokenAccountMaxAmount(connection, wallet, mintAKey);
-    if (res.code == 1) {
-      userTokenAKey = res.data.publicKey;
-    } else {
-      return res;
-    }
-  }
-  let userTokenBKey;
-  {
-    let res = await getTokenAccountMaxAmount(connection, wallet, mintBKey);
-    if (res.code == 1) {
-      userTokenBKey = res.data.publicKey;
-    } else {
-      return res;
-    }
-  }
   // use data
   let mintAData;
   {
@@ -81,6 +63,37 @@ export async function createPool(
     let res = await getMintData(connection, mintBKey);
     if (res.code == 1) {
       mintBData = res.data;
+    } else {
+      return res;
+    }
+  }
+  let mintAAcc;
+  let mintBAcc;
+  if (mintAData.decimals > mintBData.decimals) {
+    // swap a and b
+    let tempKey = mintBKey;
+    mintBKey = mintAKey;
+    mintAKey = tempKey;
+    let tempData = { ...mintBData };
+    mintBData = { ...mintAData };
+    mintAData = tempData;
+  }
+  mintBAcc = new PublicKey(mintBKey);
+  mintAAcc = new PublicKey(mintAKey);
+  let userTokenAKey;
+  {
+    let res = await getTokenAccountMaxAmount(connection, wallet, mintAKey);
+    if (res.code == 1) {
+      userTokenAKey = res.data.publicKey;
+    } else {
+      return res;
+    }
+  }
+  let userTokenBKey;
+  {
+    let res = await getTokenAccountMaxAmount(connection, wallet, mintBKey);
+    if (res.code == 1) {
+      userTokenBKey = res.data.publicKey;
     } else {
       return res;
     }

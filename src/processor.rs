@@ -92,6 +92,12 @@ impl Processor {
         if pool.status != PoolStatus::NotInit {
             return Err(AmmError::PoolExist.into());
         }
+        // check mint
+        let mint_a = Self::unpack_mint(mint_a_acc)?;
+        let mint_b = Self::unpack_mint(mint_b_acc)?;
+        if mint_a.decimals > mint_b.decimals {
+            return Err(AmmError::InvalidMintDecimals.into());
+        }
         // check vault a
         let vault_a = Self::unpack_token_account(vault_a_acc)?;
         if vault_a.mint != *mint_a_acc.key {
@@ -399,12 +405,7 @@ impl Processor {
         }
         // match direction
         let amount_transfer: u64;
-        msg!(
-            "amount:{}, vault a:{}, vault b:{}",
-            amount,
-            vault_a.amount,
-            vault_b.amount
-        );
+        msg!("{}", direction);
         match direction {
             Direction::A2B => {
                 amount_transfer = Self::calculate_amount_a2b(pool, amount, vault_a, vault_b)?;
@@ -603,6 +604,12 @@ impl Processor {
         let vault_b_amount = vault_b.amount as u128;
         let amount_big = amount as u128;
         let amount_transfer_big = amount_transfer as u128;
+        msg!("vault a:{}, vault b:{}", vault_a_amount, vault_b_amount);
+        msg!(
+            "amount:{}, amount transfer:{}",
+            amount_big,
+            amount_transfer_big
+        );
         match direction {
             Direction::A2B => {
                 ka_new = vault_a_amount.checked_add(amount_big).unwrap();
@@ -614,6 +621,7 @@ impl Processor {
             }
         }
         let k_new: u128 = ka_new.checked_mul(kb_new).unwrap();
+        msg!("k:{}, k new:{}", k_origin, k_new);
         let tolerance: u128;
         if k_origin > k_new {
             tolerance = k_origin - k_new;
@@ -663,7 +671,7 @@ impl Processor {
     }
 
     /// Unpacks a spl_token `Mint`.
-    fn _unpack_mint(account_info: &AccountInfo) -> Result<spl_token::state::Mint, AmmError> {
+    fn unpack_mint(account_info: &AccountInfo) -> Result<spl_token::state::Mint, AmmError> {
         if account_info.owner != &spl_token::ID {
             Err(AmmError::InvalidTokenProgramId)
         } else {
@@ -770,6 +778,9 @@ impl PrintProgramError for AmmError {
             AmmError::InvalidSignAccount => msg!("Error: InvalidSignAccount"),
             AmmError::InvalidVault => msg!("Error: InvalidVault"),
             AmmError::InvalidMint => msg!("Error: InvalidMint"),
+            AmmError::InvalidMintDecimals => {
+                msg!("Error: Mint a decimals must not be bigger than mint b.")
+            }
             AmmError::InvalidStatus => msg!("Error: InvalidStatus"),
             AmmError::InsufficientFunds => msg!("Error: InsufficientFunds"),
             AmmError::InvalidInput => msg!("Error: InvalidInput"),

@@ -13,6 +13,7 @@
   "scripts": {
     "test": "node js/test/test.js",
     "init": "node js/test/init.js",
+    "deploy": "solana program deploy target/deploy/amm.so",
     "start-test-validator": "solana-test-validator --reset",
     "start-test-validator2": "solana-test-validator",
     "lint": "eslint --ext .ts src/client/* && prettier --check \"src/client/**/*.ts\"",

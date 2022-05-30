@@ -39,7 +39,7 @@ async function getPayer() {
 async function initEnv(connection, wallet) {
   // create mint
   {
-    let res = await initMintAndTokenAccount(connection, wallet, 9, 1000);
+    let res = await initMintAndTokenAccount(connection, wallet, 0, 1000);
     if (res.code == 1) {
       mintAKey = res.data;
       console.log("mint a", mintAKey);
@@ -48,7 +48,7 @@ async function initEnv(connection, wallet) {
     }
   }
   {
-    let res = await initMintAndTokenAccount(connection, wallet, 6, 1000);
+    let res = await initMintAndTokenAccount(connection, wallet, 9, 1000);
     if (res.code == 1) {
       mintBKey = res.data;
       console.log("mint b", mintBKey);
@@ -104,16 +104,16 @@ export async function main() {
         // 0.01 means 1%
         // fee mint must be mint b
         let feeParams = {
-          rate: 0.0045,
+          rate: 0.01,
           mint: new PublicKey(mintBKey),
         };
         let res = await createPool(
           connection,
           payer,
           feeParams,
-          1,
-          150,
-          255,
+          100,
+          100,
+          10,
           mintAKey,
           mintBKey
         );
