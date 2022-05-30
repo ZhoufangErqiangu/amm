@@ -80,6 +80,22 @@
         </el-button>
       </el-form-item>
     </el-form>
+    <el-form label-width="150px">
+      <el-form-item label="Simulate">
+        You will
+        <span
+          v-for="(item, index) in options"
+          :key="index"
+          v-show="option.direction == item.value"
+        >
+          {{ item.description }}
+        </span>
+        <span>{{ simulateAmount.toFixed(3) }}</span>
+      </el-form-item>
+      <el-form-item label="Simulate Rate">
+        <span>{{ simulateRate.toFixed(3) }}</span>
+      </el-form-item>
+    </el-form>
   </div>
 </template>
 
@@ -123,14 +139,16 @@ export default {
   },
   data() {
     return {
+      vaultAData: 0,
+      vaultBData: 0,
       feeAmount: 0,
       option: {
         amount: 0,
         direction: 1,
       },
       options: [
-        { label: "A2B", value: 1 },
-        { label: "B2A", value: 2 },
+        { label: "A2B", value: 1, description: "receive" },
+        { label: "B2A", value: 2, description: "pay" },
       ],
       loading: false,
       loading2: false,
@@ -140,13 +158,33 @@ export default {
   },
   methods: {
     async getData() {
-      let res = await getTokenAccountData(connection, this.data.fee_vault);
-      if (res.code == 1) {
-        this.feeAmount = res.data.amount;
+      {
+        let res = await getTokenAccountData(connection, this.data.vault_a);
+        if (res.code == 1) {
+          this.vaultAData = res.data;
+        } else {
+          console.error("get vault a amount", res);
+        }
+      }
+      {
+        let res = await getTokenAccountData(connection, this.data.vault_b);
+        if (res.code == 1) {
+          this.vaultBData = res.data;
+        } else {
+          console.error("get vault b amount", res);
+        }
+      }
+      {
+        let res = await getTokenAccountData(connection, this.data.fee_vault);
+        if (res.code == 1) {
+          this.feeAmount = res.data.amount;
+        } else {
+          console.error("get fee vault amount", res);
+        }
       }
     },
     async onSwap() {
-      if (!(this.option.amount > 0)) {
+      if (!(parseFloat(this.option.amount) > 0)) {
         this.$message({ message: "Must input valid amount.", type: "warning" });
         return;
       }
@@ -156,7 +194,7 @@ export default {
           connection,
           wallet,
           this.data.poolKey,
-          this.option.amount,
+          parseFloat(this.option.amount),
           this.option.direction
         );
         if (res.code == 1) {
@@ -246,6 +284,36 @@ export default {
     },
     isOwner() {
       return this.walletKey === this.data.owner;
+    },
+    simulateAmount() {
+      let k =
+        (this.data.ka * this.data.kb) /
+        10 ** this.vaultAData.decimals /
+        10 ** this.vaultBData.decimals;
+      if (this.option.direction === 1) {
+        // a2b
+        // (a+da)*(b-db)=k
+        return (
+          this.vaultBData.amount -
+          k / (this.vaultAData.amount + parseFloat(this.option.amount))
+        );
+      } else if (this.option.direction == 2) {
+        // b2a
+        // (a-da)*(b+db)=k
+        return (
+          k / (this.vaultAData.amount - parseFloat(this.option.amount)) -
+          this.vaultBData.amount
+        );
+      } else {
+        return 0;
+      }
+    },
+    simulateRate() {
+      if (parseFloat(this.option.amount) > 0) {
+        return this.simulateAmount / parseFloat(this.option.amount);
+      } else {
+        return 0;
+      }
     },
   },
 };
