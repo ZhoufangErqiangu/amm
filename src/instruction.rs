@@ -13,6 +13,7 @@ use std::{fmt, mem::size_of};
 pub enum Direction {
     A2B,
     B2A,
+    InvalidDirection,
 }
 
 impl fmt::Display for Direction {
@@ -20,8 +21,33 @@ impl fmt::Display for Direction {
         let status: String = match self {
             Direction::A2B => "Swap direction: A to B".to_string(),
             Direction::B2A => "Swap direction: B to A".to_string(),
+            Direction::InvalidDirection => "InvalidDirection".to_string(),
         };
         write!(f, "{}", status)
+    }
+}
+
+impl Eq for Direction {}
+
+// 1 is a2b, 2 is b2a
+impl From<u8> for Direction {
+    fn from(data: u8) -> Direction {
+        match data {
+            1 => Direction::A2B,
+            2 => Direction::B2A,
+            _ => Direction::InvalidDirection,
+        }
+    }
+}
+
+// 1 is a2b, 2 is b2a
+impl Into<u8> for Direction {
+    fn into(self) -> u8 {
+        match self {
+            Direction::A2B => 1,
+            Direction::B2A => 2,
+            Direction::InvalidDirection => 0,
+        }
     }
 }
 
@@ -86,15 +112,11 @@ impl AmmInstruction {
                 let data = array_ref![rest, 0, 8 + 1];
                 let (amount_buf, direction_buf) = array_refs![data, 8, 1];
                 // 1 is a2b, 2 is b2a
-                let direction = match u8::from_le_bytes(*direction_buf) {
-                    1 => Direction::A2B,
-                    2 => Direction::B2A,
-                    _ => return Err(AmmError::InvalidDirection.into()),
-                };
+                let direction = Direction::from(u8::from_le_bytes(*direction_buf));
 
                 Self::Swap {
                     amount: u64::from_le_bytes(*amount_buf),
-                    direction: direction,
+                    direction,
                 }
             }
 
@@ -137,11 +159,8 @@ impl AmmInstruction {
             &Self::Swap { amount, direction } => {
                 buf.push(10);
                 buf.extend_from_slice(&amount.to_le_bytes());
-                // 1 is a2b, 2 is b2a
-                match direction {
-                    Direction::A2B => buf.push(1),
-                    Direction::B2A => buf.push(2),
-                }
+                let direction_buf: u8 = direction.into();
+                buf.push(direction_buf);
             }
 
             &Self::WithdrawalFee {} => {

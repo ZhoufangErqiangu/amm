@@ -449,6 +449,9 @@ impl Processor {
                     amount,
                 )?;
             }
+            Direction::InvalidDirection => {
+                return Err(AmmError::InvalidDirection.into());
+            }
         }
         // check if k is within tolerance
         // Self::check_amount_tolerance(pool, direction, amount, amount_transfer, vault_a, vault_b)?;
@@ -618,6 +621,9 @@ impl Processor {
             Direction::B2A => {
                 ka_new = vault_a_amount.checked_sub(amount_big).unwrap();
                 kb_new = vault_b_amount.checked_add(amount_transfer_big).unwrap();
+            }
+            Direction::InvalidDirection => {
+                return Err(AmmError::InvalidDirection.into());
             }
         }
         let k_new: u128 = ka_new.checked_mul(kb_new).unwrap();
