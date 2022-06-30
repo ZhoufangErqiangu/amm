@@ -33,6 +33,29 @@ impl fmt::Display for PoolStatus {
     }
 }
 
+impl Eq for PoolStatus {}
+
+impl From<u8> for PoolStatus {
+    fn from(data: u8) -> PoolStatus {
+        match data {
+            0 => PoolStatus::NotInit,
+            1 => PoolStatus::Nomal,
+            2 => PoolStatus::Lock,
+            _ => PoolStatus::default(),
+        }
+    }
+}
+
+impl Into<u8> for PoolStatus {
+    fn into(self) -> u8 {
+        match self {
+            PoolStatus::NotInit => 0,
+            PoolStatus::Nomal => 1,
+            PoolStatus::Lock => 2,
+        }
+    }
+}
+
 /// amm pool
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -65,6 +88,7 @@ impl IsInitialized for AmmPool {
         self.status == PoolStatus::NotInit
     }
 }
+
 impl Pack for AmmPool {
     const LEN: usize = 1 * 2 + 8 * 4 + 32 * 6;
     fn unpack_from_slice(src: &[u8]) -> Result<Self, ProgramError> {
@@ -85,16 +109,10 @@ impl Pack for AmmPool {
             fee_vault_buf,
         ) = array_refs![src, 1, 1, 8, 8, 8, 8, 32, 32, 32, 32, 32, 32];
 
-        let status_temp = u8::from_le_bytes(*status_buf);
-        let status: PoolStatus = match status_temp {
-            0 => PoolStatus::NotInit,
-            1 => PoolStatus::Nomal,
-            2 => PoolStatus::Lock,
-            _ => PoolStatus::default(),
-        };
+        let status: PoolStatus = PoolStatus::from(u8::from_le_bytes(*status_buf));
 
         Ok(AmmPool {
-            status: status,
+            status,
             nonce: u8::from_le_bytes(*nonce_buf),
             ka: u64::from_le_bytes(*ka_buf),
             kb: u64::from_le_bytes(*kb_buf),
@@ -126,11 +144,7 @@ impl Pack for AmmPool {
             vault_b_buf,
             fee_vault_buf,
         ) = mut_array_refs![dst, 1, 1, 8, 8, 8, 8, 32, 32, 32, 32, 32, 32];
-        let status: u8 = match self.status {
-            PoolStatus::NotInit => 0,
-            PoolStatus::Nomal => 1,
-            PoolStatus::Lock => 2,
-        };
+        let status: u8 = self.status.into();
         *status_buf = status.to_le_bytes();
         *nonce_buf = self.nonce.to_le_bytes();
         *ka_buf = self.ka.to_le_bytes();
