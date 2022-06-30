@@ -4,7 +4,7 @@
 
 Automated market makers smart contract
 
-**This code has NOT been audit, use on your own risk.**
+**This code has NOT been auditted, use on your own risk.**
 
 ## Software framework
 
