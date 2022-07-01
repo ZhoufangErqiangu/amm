@@ -1,5 +1,6 @@
 import { AccountLayout, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
+  Connection,
   Keypair,
   PublicKey,
   SystemProgram,
@@ -17,6 +18,9 @@ import { getPoolData, getPoolDataRaw, PoolDataLayout } from "./state.js";
 // program
 export const AmmProgramId = "aAmLZ9yP1adeZyRC9qMskX9e1Ma2gR4ktpyrDCWPkdm";
 const programId = new PublicKey(AmmProgramId);
+
+// token
+const USDCKey = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
 
 const PercenMul = 10 ** 6;
 const SeedPre = "AMM";
@@ -455,13 +459,35 @@ export async function swap(connection, wallet, poolKey, amount, direction) {
   if (res.code == 1) {
     return {
       code: 1,
-      msg: "pool create ok",
-      data: poolAcc.toBase58(),
+      msg: "swap ok",
+      data: "",
       signature: res.data,
     };
   } else {
     return res;
   }
+}
+
+export async function getSuperSwapPools(connection, mintAKey, mintBKey) {
+  let pool1;
+  {
+    let list = await findPoolByMints(connection, mintAKey, USDCKey);
+    if (list.length > 0) {
+      pool1 = list[0].pubkey.toBase58();
+    } else {
+      return { code: 0, msg: `null pool ${mintAKey}` };
+    }
+  }
+  let pool2;
+  {
+    let list = await findPoolByMints(connection, mintBKey, USDCKey);
+    if (list.length > 0) {
+      pool2 = list[0].pubkey.toBase58();
+    } else {
+      return { code: 0, msg: `null pool ${mintBKey}` };
+    }
+  }
+  return { code: 1, msg: "get supper swap pool ok", data: { pool1, pool2 } };
 }
 
 export async function superSwap(
@@ -470,7 +496,175 @@ export async function superSwap(
   poolKey1,
   poolKey2,
   amount
-) {}
+) {
+  // use account
+  let walletAcc = wallet.publicKey;
+  let poolAcc1 = new PublicKey(poolKey1);
+  let poolAcc2 = new PublicKey(poolKey2);
+  // use data
+  let poolData1;
+  {
+    let res = await getPoolData(connection, poolKey1);
+    if (res.code == 1) {
+      poolData1 = res.data;
+    } else {
+      return res;
+    }
+  }
+  let poolData2;
+  {
+    let res = await getPoolData(connection, poolKey2);
+    if (res.code == 1) {
+      poolData2 = res.data;
+    } else {
+      return res;
+    }
+  }
+  let mintAData;
+  {
+    let res = await getMintData(connection, poolData1.mint_a);
+    if (res.code == 1) {
+      mintAData = res.data;
+    } else {
+      return res;
+    }
+  }
+  let mintBData;
+  {
+    let res = await getMintData(connection, poolData2.mint_a);
+    if (res.code == 1) {
+      mintBData = res.data;
+    } else {
+      return res;
+    }
+  }
+  // use account
+  let poolPDA1;
+  {
+    let res = await getPoolPDA(connection, poolKey1);
+    if (res.code == 1) {
+      poolPDA1 = res.data;
+    } else {
+      return res;
+    }
+  }
+  let poolPDA2;
+  {
+    let res = await getPoolPDA(connection, poolKey2);
+    if (res.code == 1) {
+      poolPDA2 = res.data;
+    } else {
+      return res;
+    }
+  }
+  let userTokenAKey;
+  {
+    let res = await getTokenAccountMaxAmount(
+      connection,
+      wallet,
+      poolData1.mint_a
+    );
+    if (res.code == 1) {
+      userTokenAKey = res.data.publicKey;
+    } else {
+      return res;
+    }
+  }
+  let userTokenBKey;
+  {
+    let res = await getTokenAccountMaxAmount(
+      connection,
+      wallet,
+      poolData2.mint_a
+    );
+    if (res.code == 1) {
+      userTokenBKey = res.data.publicKey;
+    } else {
+      return res;
+    }
+  }
+  let userTokenUSDCKey;
+  {
+    let res = await getTokenAccountMaxAmount(connection, wallet, USDCKey);
+    if (res.code == 1) {
+      userTokenUSDCKey = res.data.publicKey;
+    } else {
+      return res;
+    }
+  }
+  // calculate amount
+  let amountB = 0.0;
+  {
+    // calculate mint a to usdc
+    let res = await calculateSwapAmount(
+      connection,
+      poolKey1,
+      amount,
+      Direction.A2B
+    );
+    if (res.code == 1) {
+      amountB = res.data;
+    } else {
+      return res;
+    }
+  }
+  {
+    // calculate usdc to mint b
+    let res = await calculateSwapAmount2(
+      connection,
+      poolKey2,
+      amountB,
+      Direction.B2A
+    );
+    if (res.code == 1) {
+      amountB = res.data;
+    } else {
+      return res;
+    }
+  }
+  // make transaction
+  let tx = new Transaction().add(
+    AmmInstruction.createSwapInstrucion(
+      amount * 10 ** mintAData.decimals,
+      Direction.A2B,
+      poolAcc1,
+      new PublicKey(poolData1.vault_a),
+      new PublicKey(poolData1.vault_b),
+      new PublicKey(poolData1.fee_vault),
+      poolPDA1,
+      walletAcc,
+      new PublicKey(userTokenAKey),
+      new PublicKey(userTokenUSDCKey),
+      TOKEN_PROGRAM_ID,
+      programId
+    ),
+    AmmInstruction.createSwapInstrucion(
+      amountB * 10 ** mintBData.decimals,
+      Direction.B2A,
+      poolAcc2,
+      new PublicKey(poolData2.vault_a),
+      new PublicKey(poolData2.vault_b),
+      new PublicKey(poolData2.fee_vault),
+      poolPDA2,
+      walletAcc,
+      new PublicKey(userTokenBKey),
+      new PublicKey(userTokenUSDCKey),
+      TOKEN_PROGRAM_ID,
+      programId
+    )
+  );
+  let res = await signAndSendTransaction(connection, wallet, null, tx);
+  if (res.code == 1) {
+    return {
+      code: 1,
+      msg: "super swap ok",
+      data: "",
+      signature: res.data,
+    };
+  } else {
+    return res;
+  }
+}
 
 export async function withdrawalFee(connection, wallet, poolKey) {
   // use account
@@ -591,10 +785,74 @@ export async function calculateSwapAmount(
     return { code: -3, msg: "direction unknow", data: direction };
   }
   // check tolerance
-  let diff = Math.abs(k - kNew);
-  if (diff > pool.tolerance) {
-    return { code: -4, msg: "out of tolerance", data: diff };
+  // let diff = Math.abs(k - kNew);
+  // if (diff > pool.tolerance) {
+  //   return { code: -4, msg: "out of tolerance", data: diff };
+  // }
+  return { code: 1, msg: "calculate swap amount ok", data: b };
+}
+
+export async function calculateSwapAmount2(
+  connection,
+  poolKey,
+  amount,
+  direction
+) {
+  // use data
+  let poolData;
+  {
+    let res = await getPoolData(connection, poolKey);
+    if (res.code == 1) {
+      poolData = res.data;
+    } else {
+      return res;
+    }
   }
+  let vaultAData;
+  {
+    let res = await getTokenAccountData(connection, poolData.vault_a);
+    if (res.code == 1) {
+      vaultAData = res.data;
+    } else {
+      return res;
+    }
+  }
+  let vaultBData;
+  {
+    let res = await getTokenAccountData(connection, poolData.vault_b);
+    if (res.code == 1) {
+      vaultBData = res.data;
+    } else {
+      return res;
+    }
+  }
+  // calculate
+  let k = pool.ka * pool.kb;
+  let A = vaultAData.amount * 10 ** vaultAData.decimals;
+  let B = vaultBData.amount * 10 ** vaultBData.decimals;
+  let a = 0;
+  let b = amount;
+  let kNew = 0;
+  if ((direction = Direction.A2B)) {
+    a = Math.round(k / (B - b) - A);
+    if (a >= A) {
+      return { code: -2, msg: "a is greater than A", data: a };
+    }
+    kNew = (A + a) * (B - b);
+  } else if ((direction = Direction.B2A)) {
+    if (b >= B) {
+      return { code: -1, msg: "b is greater than B", data: b };
+    }
+    b = Math.round(A - k / (B + b));
+    kNew = (A - a) * (B + b);
+  } else {
+    return { code: -3, msg: "direction unknow", data: direction };
+  }
+  // check tolerance
+  // let diff = Math.abs(k - kNew);
+  // if (diff > pool.tolerance) {
+  //   return { code: -4, msg: "out of tolerance", data: diff };
+  // }
   return { code: 1, msg: "calculate swap amount ok", data: b };
 }
 
