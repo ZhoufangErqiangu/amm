@@ -1,6 +1,5 @@
 import { AccountLayout, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
-  Connection,
   Keypair,
   PublicKey,
   SystemProgram,
@@ -763,24 +762,24 @@ export async function calculateSwapAmount(
     }
   }
   // calculate
-  let k = pool.ka * pool.kb;
+  let k = poolData.ka * poolData.kb;
   let A = vaultAData.amount * 10 ** vaultAData.decimals;
   let B = vaultBData.amount * 10 ** vaultBData.decimals;
   let a = amount;
   let b = 0;
-  let kNew = 0;
+  // let kNew = 0;
   if ((direction = Direction.A2B)) {
     b = Math.round(B - k / (A + a));
     if (b >= B) {
       return { code: -1, msg: "b is greater than B", data: b };
     }
-    kNew = (A + a) * (B - b);
+    // kNew = (A + a) * (B - b);
   } else if ((direction = Direction.B2A)) {
     if (a >= A) {
       return { code: -2, msg: "a is greater than A", data: a };
     }
     b = Math.round(k / (A - a) - B);
-    kNew = (A - a) * (B + b);
+    // kNew = (A - a) * (B + b);
   } else {
     return { code: -3, msg: "direction unknow", data: direction };
   }
@@ -827,24 +826,24 @@ export async function calculateSwapAmount2(
     }
   }
   // calculate
-  let k = pool.ka * pool.kb;
+  let k = poolData.ka * poolData.kb;
   let A = vaultAData.amount * 10 ** vaultAData.decimals;
   let B = vaultBData.amount * 10 ** vaultBData.decimals;
   let a = 0;
   let b = amount;
-  let kNew = 0;
+  // let kNew = 0;
   if ((direction = Direction.A2B)) {
     a = Math.round(k / (B - b) - A);
     if (a >= A) {
       return { code: -2, msg: "a is greater than A", data: a };
     }
-    kNew = (A + a) * (B - b);
+    // kNew = (A + a) * (B - b);
   } else if ((direction = Direction.B2A)) {
     if (b >= B) {
       return { code: -1, msg: "b is greater than B", data: b };
     }
     b = Math.round(A - k / (B + b));
-    kNew = (A - a) * (B + b);
+    // kNew = (A - a) * (B + b);
   } else {
     return { code: -3, msg: "direction unknow", data: direction };
   }
